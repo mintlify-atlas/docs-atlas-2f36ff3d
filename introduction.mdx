@@ -1,0 +1,51 @@
+---
+title: "COI Client: Ability System Mod for Fabric Minecraft"
+sidebarTitle: "Introduction"
+description: "COI Client is a Minecraft Fabric mod that adds a server-synced ability system, customizable HUD, 10 visual effects, and 20 mythical creature forms to Minecraft."
+---
+
+COI Client is a client-side Minecraft Fabric mod built for players on servers running the **Circle of Imagination** Paper plugin. It adds a full ability system — complete with a six-slot HUD, an interactive ability wheel, server-synced cooldowns, and rich visual effects — directly into your Minecraft client. Whether you're navigating one of 25 mythical pathways or triggering screen-shaking glitch effects mid-battle, COI Client translates server-side game logic into a polished, customizable in-game experience.
+
+## Core Features
+
+<CardGroup cols={2}>
+  <Card title="Ability System" icon="bolt" href="/ability-system">
+    Bind up to 6 abilities to dedicated hotkeys (Z–N) or arrange up to 16 in the interactive ability wheel. A live HUD displays each slot with cooldown timers, glow effects, and keybind labels — all fully repositionable and scalable.
+  </Card>
+  <Card title="Visual Effects" icon="wand-magic-sparkles" href="/visual-effects-overview">
+    10 server-triggered visual effects render directly on your HUD: vignettes, heartbeats, screen cracks, glitch distortions, blood rain, frost overlays, whispers, tunnel vision, eye appearances, and flash bursts.
+  </Card>
+  <Card title="Mythical Forms" icon="dragon" href="/mythical-forms">
+    Supports 20 mythical creature forms delivered via server payloads and managed client-side by the `MythicalFormManager`. Forms are tied to the 25 ability pathways and are rendered as part of the broader beyonder progression system.
+  </Card>
+  <Card title="Server Integration" icon="server" href="/network/overview">
+    All ability data, cooldowns, and effect triggers flow through Fabric custom payloads between the client mod and the Circle of Imagination Paper plugin. The client requests abilities on join and keeps state in sync automatically throughout a session.
+  </Card>
+</CardGroup>
+
+## How It Works
+
+COI Client is **purely client-side** — it contains no server code and makes no assumptions about your world. Instead, it communicates with the **Circle of Imagination Paper plugin** running on your server through Fabric's custom payload (plugin messaging) system.
+
+When you join a server, the client automatically sends a `coi-client:request` payload to ask for your available abilities. The server responds with a `coi-client:abilities` payload containing all abilities assigned to your character. From that point on, the server pushes cooldown updates (`coi-client:cooldown`), visual effect commands (`coi-client:effect`), mythical form transitions (`coi-client:mcf`), and beyonder condition data (`coi-client:conditions`) — and the client renders everything locally with no further round-trips needed.
+
+This clean split means the mod adds **zero server-side overhead**: all rendering, HUD logic, keybinding handling, and visual effect animation run entirely on your machine.
+
+## Ability Pathways
+
+The Circle of Imagination world organises abilities into **25 mythical pathways**, each with its own identity, color coding, and custom icon displayed in the HUD and on item tooltips:
+
+| Color | Pathways |
+|-------|----------|
+| **Purple** | Fool |
+| **Blue** | Door |
+| **Yellow** | Sun |
+| **Cyan** | Tyrant |
+| **Red** | Demoness |
+| **Orange** | Priest |
+
+The remaining 19 pathways — Abyss, Aeon, Chained, Darkness, Death, Emperor, Error, Fortune, Giant, Hanged, Hermit, Justiciar, Moon, Mother, Paragon, Patriarch, Sublunary, Tower, and Visionary — each carry their own icon rendered through the `coi-client:pathway_icons` font, visible on ability slots and ingredient item tooltips.
+
+<Note>
+  COI Client is a **client-side only** mod. It will not function without the **Circle of Imagination Paper plugin** running on the server you connect to. Installing COI Client alone on a vanilla or unsupported server will result in no abilities being loaded.
+</Note>

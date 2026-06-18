@@ -1,0 +1,108 @@
+---
+title: "Configure the COI Client HUD Layout and Display Options"
+sidebarTitle: "HUD Configuration"
+description: "Adjust HUD position, slot size, spacing, scale, and visual toggles using the in-game settings screen or by editing coi_hud.json directly."
+---
+
+COI Client's HUD is fully configurable — you can move the ability slot row anywhere on screen, resize slots, toggle labels and glow effects, and even scale the entire overlay up or down. All settings live in `config/coi_hud.json` and are loaded once on startup, but the easiest way to tune them is through the **HUD Settings screen** built into the mod, which lets you preview changes live without reloading the game.
+
+## HUD Settings Screen
+
+<Steps>
+  <Step title="Open the Ability Binding screen">
+    Press **K** in-game to open the Ability Binding screen.
+  </Step>
+  <Step title="Click HUD Settings">
+    Click the **HUD Settings** button in the top-right corner of the Ability Binding screen. This opens the dedicated HUD configuration screen.
+  </Step>
+  <Step title="Adjust sliders, fields, and toggles">
+    Use the sliders for numeric values (drag left/right) or type a precise value directly into the text field next to each slider. Check or uncheck the toggle options to enable or disable individual visual elements.
+  </Step>
+  <Step title="Save and close">
+    Click **Done** to write all changes to `config/coi_hud.json` and return to your game. Click **Cancel** to discard any unsaved changes.
+  </Step>
+</Steps>
+
+## Available Settings
+
+<ParamField path="enabled" type="boolean" default="true">
+  Master toggle for the entire ability HUD. When set to `false`, no ability slots are rendered at all. The HUD Settings screen shows a warning banner when this is off so you don't accidentally hide your HUD.
+</ParamField>
+
+<ParamField path="hudX" type="int" default="10">
+  Horizontal position of the leftmost ability slot in pixels, measured from the left edge of the screen. Valid range: `0`–`500`. Adjust this alongside `hudScale` — the renderer divides this value by `hudScale` before positioning.
+</ParamField>
+
+<ParamField path="hudYOffset" type="int" default="60">
+  Vertical offset from the bottom of the screen in pixels. The ability row is anchored to the bottom edge: the actual Y position is calculated as `(screenHeight - hudYOffset) / hudScale`. Valid range: `0`–`200`.
+</ParamField>
+
+<ParamField path="slotSize" type="int" default="40">
+  Width and height of each ability slot icon in pixels (slots are square). Valid range: `20`–`100`. Larger slots make icons easier to read; smaller slots save screen space.
+</ParamField>
+
+<ParamField path="slotSpacing" type="int" default="50">
+  Horizontal distance in pixels between the left edge of one slot and the left edge of the next. Must be at least as large as `slotSize` to avoid overlapping slots. Valid range: `30`–`100`.
+</ParamField>
+
+<ParamField path="showKeybinds" type="boolean" default="true">
+  When enabled, the bound key name (e.g. `Z`, `X`) is rendered below each slot so you can see at a glance which key triggers which ability.
+</ParamField>
+
+<ParamField path="showAbilityNames" type="boolean" default="true">
+  When enabled, the English display name of the bound ability is shown beneath its slot. Disable this for a cleaner, icon-only HUD.
+</ParamField>
+
+<ParamField path="showGlowEffect" type="boolean" default="true">
+  When enabled, a colored glow pulses around a slot when its ability comes off cooldown and is ready to use. The glow color matches the ability's pathway color. Disable this if you prefer a static HUD or want to reduce visual noise.
+</ParamField>
+
+<ParamField path="hudScale" type="float" default="1.0">
+  A multiplier applied to the entire HUD. `1.0` is native size; `0.5` halves everything; `2.0` doubles it. Valid range: `0.5`–`2.0`. Both position values (`hudX`, `hudYOffset`) are divided by this scale before rendering, so the physical screen position stays roughly stable as you scale.
+</ParamField>
+
+<ParamField path="wheelSlots" type="int" default="8">
+  The number of segments shown on the [Ability Wheel](/ability-wheel). Valid range: `2`–`16` (hard maximum is `MAX_WHEEL_SIZE = 16`). Only the first `wheelSlots` entries from your wheel bindings are displayed on the radial.
+</ParamField>
+
+## Presets
+
+The HUD Settings screen includes four built-in presets you can cycle through by clicking the **Preset** button at the bottom of the screen. Each click advances to the next preset and applies it immediately:
+
+| Preset | Description | `slotSize` | `slotSpacing` | `hudScale` | Names | Glow |
+|--------|-------------|-----------|--------------|-----------|-------|------|
+| **Default** | Balanced layout for most screen sizes | 40 | 50 | 1.0 | ✔ | ✔ |
+| **Compact** | Small slots, no names, reduced scale | 30 | 35 | 0.8 | ✘ | ✘ |
+| **Large** | Oversized slots and generous spacing | 55 | 65 | 1.2 | ✔ | ✔ |
+| **Minimal** | Tiny icons only — maximum screen space | 25 | 30 | 0.7 | ✘ | ✘ |
+
+Applying a preset overwrites all layout fields with the preset values, but does not change the `enabled` flag or boolean toggles that the preset doesn't touch. You can then fine-tune individual values after applying a preset.
+
+## Manual Config
+
+If you prefer to edit the file directly, `config/coi_hud.json` uses standard JSON. Here is the file with all fields set to their defaults:
+
+```json
+{
+  "enabled": true,
+  "hudX": 10,
+  "hudYOffset": 60,
+  "slotSize": 40,
+  "slotSpacing": 50,
+  "showKeybinds": true,
+  "showAbilityNames": true,
+  "showGlowEffect": true,
+  "hudScale": 1.0,
+  "wheelSlots": 8,
+  "epilepsyMode": false,
+  "showMadnessBar": true,
+  "madnessYOffset": 55,
+  "madnessAnchor": "TOP_LEFT"
+}
+```
+
+Any field missing from the file falls back to its default value when the mod loads, so you only need to include fields you want to change. The file is re-written whenever you save from the HUD Settings screen or when a preset is applied.
+
+<Tip>
+  Changes made in the HUD Settings screen take effect immediately — the HUD re-reads its settings on every render frame. You can leave the settings screen open, drag a slider, and watch the ability bar reposition in real time behind the transparent overlay. No Minecraft restart is needed.
+</Tip>

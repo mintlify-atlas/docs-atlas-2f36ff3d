@@ -1,0 +1,236 @@
+---
+title: "Adding Custom Visual Effects to COI Client"
+sidebarTitle: "Custom Effects"
+description: "Implement the VisualEffect interface and register your effect in EffectManager to add new screen-space effects to COI Client."
+---
+
+COI Client's visual effect system is designed to be extensible — you can add new screen-space effects by implementing the `VisualEffect` interface and registering the effect in `EffectManager.initialize()`. Once registered, effects are triggerable from the server via the standard `coi-client:effect` payload using your effect's ID, and can be stopped individually or cleared alongside all other active effects.
+
+## The VisualEffect Interface
+
+All visual effects implement `dev.ua.ikeepcalm.coi.client.effects.VisualEffect`. The full interface is:
+
+```java
+public interface VisualEffect {
+
+    /** Unique identifier used for registration and the network protocol. */
+    String getId();
+
+    /** Human-readable name shown in the dev debug screen (F8). */
+    String getDisplayName();
+
+    /** Default param string shown in the debug screen input field. */
+    String getDefaultParams();
+
+    /** Called once when the effect is triggered. Parse your params here. */
+    void start(String params);
+
+    /** Called every render frame while the effect is active. */
+    void render(GuiGraphicsExtractor ctx, int screenWidth, int screenHeight, float tickDelta);
+
+    /** Return true once the effect has naturally finished and should be removed. */
+    boolean isFinished();
+
+    /** Called when the effect is forcibly removed (e.g. the server sends "stop"). */
+    default void stop() {}
+}
+```
+
+| Method | Purpose |
+|--------|---------|
+| `getId()` | Returns the unique effect identifier that matches the `effectId` field in the `coi-client:effect` payload |
+| `getDisplayName()` | Human-readable label shown in the developer debug screen (F8 in dev builds) |
+| `getDefaultParams()` | Pre-filled param string in the debug screen input field |
+| `start(String params)` | Entry point for the effect; parse comma-separated `key=value` pairs here and record `startTime` |
+| `render(ctx, w, h, tickDelta)` | Called every frame while the effect is in the active list; draw overlays, fills, and bands via `GuiGraphicsExtractor` |
+| `isFinished()` | `EffectManager` polls this every frame and removes the effect when it returns `true` |
+| `stop()` | Called when `params = "stop"` is received or `EffectManager.stopAll()` is invoked; force `isFinished()` to return `true` on the next frame |
+
+<Note>
+  `render()` receives a `GuiGraphicsExtractor` — a COI Client extension of Minecraft's `GuiGraphics` — along with pre-computed `screenWidth` and `screenHeight` values. Use `ctx.fill()`, `ctx.fillGradient()`, and similar helpers to draw screen-space geometry.
+</Note>
+
+## Step-by-Step Implementation
+
+<Steps>
+  <Step title="Create your effect class">
+    Create `src/client/java/dev/ua/ikeepcalm/coi/client/effects/impl/MyEffect.java` and implement `VisualEffect`:
+
+    ```java
+    package dev.ua.ikeepcalm.coi.client.effects.impl;
+
+    import dev.ua.ikeepcalm.coi.client.effects.VisualEffect;
+    import net.minecraft.client.gui.GuiGraphicsExtractor;
+
+    public class MyEffect implements VisualEffect {
+        public static final String ID = "myeffect";
+        // ...
+    }
+    ```
+
+    Declare a `public static final String ID` constant — this is what both the registry and the server use to reference your effect.
+  </Step>
+
+  <Step title="Parse params in start()">
+    Split the incoming `params` string on commas, then split each token on `=` to extract key-value pairs. Always default to safe values in case a key is missing or the string is blank:
+
+    ```java
+    @Override
+    public void start(String params) {
+        startTime = System.currentTimeMillis();
+        if (params == null || params.isBlank()) return;
+        for (String part : params.split(",")) {
+            String[] kv = part.split("=", 2);
+            if (kv.length == 2) switch (kv[0].trim()) {
+                case "intensity" -> intensity = Float.parseFloat(kv[1].trim());
+                case "duration"  -> duration  = Long.parseLong(kv[1].trim());
+            }
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="Implement render()">
+    Draw your overlay using `GuiGraphicsExtractor`. The helper methods mirror `GuiGraphics` — `fill`, `fillGradient`, etc. Screen dimensions are passed in so you never need to query the window yourself:
+
+    ```java
+    @Override
+    public void render(GuiGraphicsExtractor ctx, int w, int h, float tickDelta) {
+        float alpha = computeAlpha(); // your fade-in/out logic
+        int a = (int) (200 * intensity * alpha);
+        if (a <= 0) return;
+        ctx.fill(0, 0, w, h, (a << 24)); // full-screen tint example
+    }
+    ```
+  </Step>
+
+  <Step title="Implement isFinished() and stop()">
+    `EffectManager` removes the effect as soon as `isFinished()` returns `true`. Make `stop()` force that condition immediately:
+
+    ```java
+    @Override
+    public boolean isFinished() {
+        return duration > 0 && (System.currentTimeMillis() - startTime) > duration;
+    }
+
+    @Override
+    public void stop() {
+        duration = 0; // makes isFinished() return true on the next frame
+    }
+    ```
+
+    A `duration` of `-1` (the conventional default) means the effect persists until the server explicitly stops it.
+  </Step>
+
+  <Step title="Register in EffectManager.initialize()">
+    Open `EffectManager.java` and add one line to `initialize()`, alongside the existing registrations:
+
+    ```java
+    public static void initialize() {
+        register(CracksEffect.ID,    CracksEffect::new);
+        // ... other effects ...
+        register(FlashEffect.ID,     FlashEffect::new);
+        register(MyEffect.ID,        MyEffect::new);   // ← add this
+        // HUD registration follows...
+    }
+    ```
+  </Step>
+
+  <Step title="Update server-side documentation">
+    Document your new effect's ID, accepted params, defaults, and usage examples in `docs/VISUAL_EFFECTS.md` (or your server plugin's integration guide) so server-side developers know how to trigger it.
+  </Step>
+</Steps>
+
+## Boilerplate Example
+
+The following is a complete, minimal implementation following the same patterns used by `VignetteEffect` and `FlashEffect`:
+
+```java
+package dev.ua.ikeepcalm.coi.client.effects.impl;
+
+import dev.ua.ikeepcalm.coi.client.effects.VisualEffect;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+
+public class MyEffect implements VisualEffect {
+
+    public static final String ID = "myeffect";
+
+    private float intensity = 0.7f;
+    private long duration   = -1;      // -1 = persistent until stopped
+    private long startTime;
+
+    @Override
+    public String getId() { return ID; }
+
+    @Override
+    public String getDisplayName() { return "My Effect"; }
+
+    @Override
+    public String getDefaultParams() { return "intensity=0.7,duration=-1"; }
+
+    @Override
+    public void start(String params) {
+        startTime = System.currentTimeMillis();
+        if (params == null || params.isBlank()) return;
+        // Parse params: e.g. "intensity=0.5,duration=5000"
+        for (String part : params.split(",")) {
+            String[] kv = part.split("=", 2);
+            if (kv.length == 2) switch (kv[0].trim()) {
+                case "intensity" -> intensity = Float.parseFloat(kv[1].trim());
+                case "duration"  -> duration  = Long.parseLong(kv[1].trim());
+            }
+        }
+    }
+
+    @Override
+    public void render(GuiGraphicsExtractor ctx, int w, int h, float tickDelta) {
+        float alpha = computeAlpha();
+        int a = (int) (200 * intensity * alpha);
+        if (a <= 0) return;
+
+        // Example: simple full-screen dark tint with fade
+        ctx.fill(0, 0, w, h, (a << 24));
+    }
+
+    @Override
+    public boolean isFinished() {
+        return duration > 0 && (System.currentTimeMillis() - startTime) > duration;
+    }
+
+    @Override
+    public void stop() {
+        duration = 0; // force isFinished() → true
+    }
+
+    private float computeAlpha() {
+        if (duration < 0) return 1.0f;
+        long remaining = duration - (System.currentTimeMillis() - startTime);
+        if (remaining <= 0) return 0f;
+        if (remaining < 500) return remaining / 500f; // fade out in last 500ms
+        return 1.0f;
+    }
+}
+```
+
+## Registering the Effect
+
+The single line to add inside `EffectManager.initialize()`:
+
+```java
+register(MyEffect.ID, MyEffect::new);
+```
+
+`register()` stores a `Supplier<VisualEffect>` factory — a new instance is created each time the effect is triggered, so all state fields (`intensity`, `startTime`, etc.) are cleanly reset on every trigger.
+
+## Param Parsing Tips
+
+- **Use `System.currentTimeMillis()` for timing**, not game ticks. Effects run on the render thread and are driven by wall-clock time, matching how existing effects like `VignetteEffect` and `FlashEffect` handle `duration`.
+- **Parse defensively** — always check that `kv.length == 2` before accessing `kv[1]`, and wrap numeric parses in try-catch or validate input. Clients receive server-provided strings and bad data should never crash the render loop.
+- **`stop()` must make `isFinished()` return `true` immediately** — set `duration = 0` or a past timestamp so the effect is purged from the active list on the very next render tick.
+- **Keep `render()` cheap** — avoid allocating `ArrayList`, `Random`, or other objects inside the hot path. Seed any random data at `start()` time and store results in instance fields (see `CracksEffect` for an example of deferred one-time geometry generation).
+- **Triggering an already-active effect replaces it** — `EffectManager.trigger()` removes any existing effect with the same ID before calling `start()`, so your effect is always re-initialized from scratch on re-trigger.
+- **Photosensitive effects** — if your effect involves rapid flashing or strobing, add its `ID` to `EffectManager.PHOTOSENSITIVE_EFFECTS` so it is skipped when the player has enabled `epilepsyMode` in `HudConfig`.
+
+<Warning>
+  Custom visual effects require modifying and rebuilding the COI Client JAR from source — there is no plugin or datapack mechanism for adding effects at runtime. Distribute your modified JAR to players who need it, and coordinate the effect ID with your server plugin.
+</Warning>

@@ -1,0 +1,309 @@
+---
+title: "COI Client Visual Effect Reference — All 10 Effects"
+sidebarTitle: "Effect Reference"
+description: "Complete parameter reference for all 10 COI Client visual effects: vignette, heartbeat, cracks, eyes, glitch, bloodrain, frost, whispers, tunnel, and flash."
+---
+
+This page is the complete parameter reference for all 10 COI Client screen-space visual effects. Each effect is triggered by sending the `coi-client:effect` plugin messaging payload from your Paper plugin — see [Triggering Effects](/effects/triggering-effects) for the integration setup. Params are passed as a comma-separated `key=value` string; any param you omit falls back to the default listed below.
+
+<Accordion title="vignette">
+  Darkens the edges of the player's screen, drawing the eye toward the center. A simple but effective mood setter. Good for: cursed zones, low sanity, death proximity.
+
+  <ParamField path="intensity" type="float (0–1)" default="0.7">
+    Controls the darkness and how far inward the vignette reaches toward the screen center. Higher values create a more claustrophobic feel.
+  </ParamField>
+
+  <ParamField path="duration" type="long (ms)" default="-1">
+    How long the effect runs in milliseconds. `-1` means persistent — the effect stays active until explicitly stopped with `sendEffect(player, "vignette", "stop")`. The effect fades out gracefully over the last 500ms before expiry.
+  </ParamField>
+
+  ```java
+  // Mild vignette for a cursed zone entrance — 10 seconds
+  sendEffect(player, "vignette", "intensity=0.5,duration=10000");
+
+  // Strong persistent vignette for low sanity
+  sendEffect(player, "vignette", "intensity=0.8");
+
+  // Maximum persistent vignette — extreme darkness
+  sendEffect(player, "vignette", "intensity=1.0");
+  ```
+</Accordion>
+
+<Accordion title="heartbeat">
+  A vignette that pulses with a realistic lub-DUB cardiac rhythm. The screen darkens at the edges on each beat, creating a visceral sense of a racing or labored heart. Good for: high tension, near-death, possessed states.
+
+  <Note>
+    `heartbeat` is suppressed when the player has Epilepsy Mode enabled in COI Client settings.
+  </Note>
+
+  <ParamField path="intensity" type="float (0–1)" default="0.85">
+    Peak darkness of the vignette at the top of each beat pulse.
+  </ParamField>
+
+  <ParamField path="bpm" type="float" default="75">
+    Beats per minute. The lub-DUB rhythm is fully synchronized to this value. Higher BPM creates urgency; lower BPM creates a slow, ominous dread.
+  </ParamField>
+
+  <ParamField path="duration" type="long (ms)" default="-1">
+    How long to run. Persistent by default. Fades out over the last 600ms before expiry.
+  </ParamField>
+
+  ```java
+  // Resting dread — slow ominous pulse
+  sendEffect(player, "heartbeat", "intensity=0.7,bpm=50");
+
+  // High tension — fast and heavy
+  sendEffect(player, "heartbeat", "intensity=0.9,bpm=100,duration=15000");
+
+  // Near-death — maximum intensity, elevated BPM
+  sendEffect(player, "heartbeat", "intensity=1.0,bpm=110");
+  ```
+</Accordion>
+
+<Accordion title="cracks">
+  Branching fracture lines grow inward from all eight screen origins (four corners and four edge midpoints) toward the center. At high intensity the cracks visibly pulse red. Good for: reality breaking, maximum madness, catastrophic events.
+
+  <Note>
+    Crack geometry is generated once on first render, seeded by the trigger timestamp — each call to `sendEffect` produces a unique fracture pattern.
+  </Note>
+
+  <ParamField path="intensity" type="float (0–1)" default="0.7">
+    Controls how far the cracks extend toward the screen center and the overall density of branches.
+  </ParamField>
+
+  <ParamField path="pulse" type="boolean" default="false">
+    When `true`, the cracks glow and pulse red rhythmically, suggesting a living wound in reality.
+  </ParamField>
+
+  <ParamField path="duration" type="long (ms)" default="-1">
+    How long the cracks persist. Persistent by default.
+  </ParamField>
+
+  ```java
+  // Subtle corner cracks only
+  sendEffect(player, "cracks", "intensity=0.4");
+
+  // Heavy cracks with red pulse — timed 8 seconds
+  sendEffect(player, "cracks", "intensity=0.8,pulse=true,duration=8000");
+
+  // Maximum persistent cracks
+  sendEffect(player, "cracks", "intensity=1.0,pulse=true");
+  ```
+</Accordion>
+
+<Accordion title="eyes">
+  Creepy eyes emerge from the darkness of the screen, open to stare at the player, then slowly close and fade away. Eyes are distributed across the screen in a grid (up to 3 columns). Good for: being watched, high madness, cursed locations.
+
+  **Timing breakdown per eye** (eyes are slightly staggered from each other):
+
+  | Phase | Timing | Description |
+  |---|---|---|
+  | Ambient glow | 0–500ms | A dark halo fades in around each eye |
+  | Opening | 500–2000ms | Eyelids slowly open |
+  | Staring | 2000ms–(duration−2500ms) | Eyes hold open and stare |
+  | Closing | Last 2000ms | Eyelids close and fade out |
+
+  <ParamField path="count" type="int" default="2">
+    Number of eyes to show. Values from 1 to 6 are recommended. Eyes are distributed evenly across the screen.
+  </ParamField>
+
+  <ParamField path="duration" type="long (ms)" default="8000">
+    Total lifetime of the effect including all animation phases. Must be at least 4500ms to allow the open and close animations to complete properly.
+  </ParamField>
+
+  ```java
+  // Single eye — brief, unsettling
+  sendEffect(player, "eyes", "count=1,duration=6000");
+
+  // Four eyes staring for a long time
+  sendEffect(player, "eyes", "count=4,duration=14000");
+
+  // Six eyes — maximum dread, default 8 seconds
+  sendEffect(player, "eyes", "count=6");
+  ```
+</Accordion>
+
+<Accordion title="glitch">
+  VHS-style horizontal distortion lines that strobe in short bursts, then cut out, then burst again. Lines flicker at approximately 12 times per second rather than every frame, creating an authentic analog corruption look. Good for: teleportation, reality corruption, spell side-effects.
+
+  <Note>
+    `glitch` is suppressed when the player has Epilepsy Mode enabled in COI Client settings.
+  </Note>
+
+  **Line types** (randomly mixed each burst):
+  - Dark horizontal scan band
+  - White flash band
+  - RGB chromatic fringe (red line above, cyan line below)
+  - Horizontal split block (offset on one half of the screen)
+
+  <ParamField path="intensity" type="float (0–1)" default="0.7">
+    Controls the number of lines per burst (3–8), their alpha, and how frequently bursts occur. At intensities above 0.85, an occasional full-screen bright flash can also appear.
+  </ParamField>
+
+  <ParamField path="duration" type="long (ms)" default="3000">
+    How long the glitch runs. Defaults to auto-expiring after 3 seconds — unlike most effects, `glitch` is finite by default.
+  </ParamField>
+
+  ```java
+  // Quick flicker on teleport
+  sendEffect(player, "glitch", "intensity=0.5,duration=1500");
+
+  // Heavy sustained corruption
+  sendEffect(player, "glitch", "intensity=1.0,duration=5000");
+
+  // Barely-visible single flicker
+  sendEffect(player, "glitch", "intensity=0.3,duration=500");
+  ```
+</Accordion>
+
+<Accordion title="bloodrain">
+  Dark red streaks fall down the screen like drops of blood, each with a randomized speed and opacity. Good for: combat encounters, rituals, curses, death proximity.
+
+  <ParamField path="intensity" type="float (0–1)" default="0.7">
+    Controls the number and density of falling drops across the screen.
+  </ParamField>
+
+  <ParamField path="duration" type="long (ms)" default="-1">
+    How long the rain persists. Persistent by default.
+  </ParamField>
+
+  ```java
+  // Light drizzle — timed 8 seconds
+  sendEffect(player, "bloodrain", "intensity=0.3,duration=8000");
+
+  // Moderate combat effect
+  sendEffect(player, "bloodrain", "intensity=0.6,duration=5000");
+
+  // Heavy persistent downpour
+  sendEffect(player, "bloodrain", "intensity=1.0");
+  ```
+</Accordion>
+
+<Accordion title="frost">
+  Ice crystals grow inward from all screen edges accompanied by a blue-white icy gradient overlay. Combines branching crystal lines with cold-tinted corner fills. Good for: frozen spells, cold zones, ice pathway abilities.
+
+  <ParamField path="intensity" type="float (0–1)" default="0.7">
+    Controls how far the frost reaches inward and how bright the blue-white tint appears.
+  </ParamField>
+
+  <ParamField path="duration" type="long (ms)" default="-1">
+    How long the frost persists. Persistent by default.
+  </ParamField>
+
+  ```java
+  // Moderate frost for a cold zone — 10 seconds
+  sendEffect(player, "frost", "intensity=0.6,duration=10000");
+
+  // Heavy persistent frost — player is frozen solid
+  sendEffect(player, "frost", "intensity=1.0");
+
+  // Light frost tint — entering a chilly area
+  sendEffect(player, "frost", "intensity=0.3,duration=6000");
+  ```
+</Accordion>
+
+<Accordion title="whispers">
+  Cryptic text phrases fade in and out at random positions across the screen. The spawn rate scales with `intensity`. Custom phrases can be injected via the `text` param. Good for: high madness, haunted locations, Fool/Door pathways, forbidden knowledge.
+
+  **Default phrase pool:**
+  > "they can see you" · "don't look back" · "it knows your name" · "run" · "the door is open" · "help me" · "it's behind you"
+
+  <ParamField path="intensity" type="float (0–1)" default="0.7">
+    Controls how frequently new phrases spawn on screen.
+  </ParamField>
+
+  <ParamField path="duration" type="long (ms)" default="-1">
+    How long whispers appear. Persistent by default.
+  </ParamField>
+
+  <ParamField path="text" type="string (pipe-separated)" default="built-in pool">
+    A `|`-separated list of custom phrases to show instead of the built-in pool. Spaces within a phrase are fine; only `|` is the delimiter.
+  </ParamField>
+
+  ```java
+  // Default whispers at moderate intensity
+  sendEffect(player, "whispers", "intensity=0.5");
+
+  // Custom phrases for a ritual scene — timed 20 seconds
+  sendEffect(player, "whispers", "duration=20000,text=the rite begins|do not resist|it is too late");
+
+  // High madness — frenetic default whispers
+  sendEffect(player, "whispers", "intensity=0.9");
+  ```
+</Accordion>
+
+<Accordion title="tunnel">
+  A circular vignette closes inward from all edges, leaving only a shrinking oval of visibility at the screen center. Rendered via scanline fill (~80 draw calls per frame). Good for: exhaustion, confusion, extreme madness, near-death.
+
+  <Warning>
+    Due to the scanline rendering approach (~80 draw calls per frame), `tunnel` is the most GPU-intensive effect. Avoid running it simultaneously with other heavy effects for extended durations.
+  </Warning>
+
+  <ParamField path="intensity" type="float (0–1)" default="0.7">
+    How far the tunnel closes inward. At `1.0` the visible window narrows to near-blackout.
+  </ParamField>
+
+  <ParamField path="duration" type="long (ms)" default="6000">
+    Total lifetime of the effect. Defaults to auto-expiring after 6 seconds.
+  </ParamField>
+
+  <ParamField path="closeDuration" type="long (ms)" default="2000">
+    Time taken to animate from fully open to the target `intensity`. The same value is also used for the fade-out at the end.
+  </ParamField>
+
+  ```java
+  // Moderate tunnel — 8 seconds
+  sendEffect(player, "tunnel", "intensity=0.6,duration=8000");
+
+  // Dramatic slow close — near-death
+  sendEffect(player, "tunnel", "intensity=0.95,duration=5000,closeDuration=3000");
+
+  // Quick flutter — disorientation spike
+  sendEffect(player, "tunnel", "intensity=0.4,duration=3000,closeDuration=500");
+  ```
+</Accordion>
+
+<Accordion title="flash">
+  An instant full-screen color wash that rises quickly (first 15% of duration) then fades out smoothly for the remainder. Only 1 fill call per frame — extremely lightweight. Good for: ability activation feedback, pathway-colored casts, heals, explosions.
+
+  <Note>
+    `flash` is suppressed when the player has Epilepsy Mode enabled in COI Client settings.
+  </Note>
+
+  **Pathway color reference:**
+
+  | Pathway | Hex | Preview |
+  |---|---|---|
+  | Fool | `8B00FF` | Purple |
+  | Door | `0055FF` | Blue |
+  | Sun | `FFDD00` | Yellow |
+  | Tyrant | `00CCCC` | Cyan |
+  | Demoness | `FF2200` | Red |
+  | Priest | `FF8800` | Orange |
+
+  <ParamField path="color" type="hex RGB (no #)" default="FFFFFF">
+    The color of the flash as a 6-character hex RGB string. Do not include the `#` prefix.
+  </ParamField>
+
+  <ParamField path="intensity" type="float (0–1)" default="0.6">
+    Peak opacity of the flash at the top of the rise phase.
+  </ParamField>
+
+  <ParamField path="duration" type="long (ms)" default="500">
+    Total time from flash start to full fade-out.
+  </ParamField>
+
+  ```java
+  // Sun pathway ability cast — golden flash
+  sendEffect(player, "flash", "color=FFDD00,intensity=0.6,duration=300");
+
+  // Demoness red burst — aggressive ability
+  sendEffect(player, "flash", "color=FF2200,intensity=0.8,duration=400");
+
+  // Tyrant hit confirm — cyan
+  sendEffect(player, "flash", "color=00CCCC,intensity=0.5,duration=300");
+
+  // White heal flash
+  sendEffect(player, "flash", "color=FFFFFF,intensity=0.7,duration=600");
+  ```
+</Accordion>

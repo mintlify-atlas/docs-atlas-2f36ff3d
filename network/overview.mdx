@@ -1,0 +1,94 @@
+---
+title: "COI Client Network Protocol Overview for Paper Plugins"
+sidebarTitle: "Overview"
+description: "COI Client communicates with Paper plugins via Fabric custom payloads on channels prefixed coi-client:. Learn how to register channels and the message flow."
+---
+
+COI Client communicates with the server-side Paper plugin exclusively through **Fabric custom payloads** — Minecraft's built-in plugin messaging system carried over the play connection. Every channel is prefixed `coi-client:`, and there is no REST API, WebSocket, or external transport involved. All messages travel over the same TCP connection the player uses to play, making the integration zero-configuration from a network standpoint.
+
+## Channel Summary
+
+All seven channels are listed below. Two are sent **Client → Server** (player actions), and five are sent **Server → Client** (server-authoritative state updates).
+
+| Direction | Channel | Payload Class | Purpose |
+|-----------|---------|---------------|---------|
+| C→S | `coi-client:use` | `AbilityUsePayload` | Activate an ability by ID |
+| C→S | `coi-client:request` | `AbilityRequestPayload` | Request the available abilities list |
+| S→C | `coi-client:abilities` | `AbilitiesPayload` | Deliver the full abilities list to the client |
+| S→C | `coi-client:cooldown` | `CooldownPayload` | Set an ability on cooldown for N ticks |
+| S→C | `coi-client:effect` | `VisualEffectPayload` | Trigger or stop a client-side visual effect |
+| S→C | `coi-client:mythical` | `MythicalFormPayload` | Apply or remove a mythical creature form |
+| S→C | `coi-client:conditions` | `ConditionsPayload` | Sync the player's beyonder condition state |
+
+<Note>
+  All S→C receivers are registered globally via `ClientPlayNetworking.registerGlobalReceiver` during mod initialization. It is safe to send any S→C payload at any point after the player completes the login handshake — you do not need to wait for a client-side ready signal.
+</Note>
+
+## Registering Channels in Paper
+
+On the Paper side, register the channels your plugin intends to send in your `onEnable()` method using the `Messenger` API. You must register each outgoing channel before sending on it.
+
+```java
+import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.messaging.Messenger;
+
+public class CirclePlugin extends JavaPlugin {
+
+    @Override
+    public void onEnable() {
+        Messenger messenger = getServer().getMessenger();
+
+        // S→C channels — register as outgoing
+        messenger.registerOutgoingPluginChannel(this, "coi-client:abilities");
+        messenger.registerOutgoingPluginChannel(this, "coi-client:cooldown");
+        messenger.registerOutgoingPluginChannel(this, "coi-client:effect");
+        messenger.registerOutgoingPluginChannel(this, "coi-client:mythical");
+        messenger.registerOutgoingPluginChannel(this, "coi-client:conditions");
+
+        // C→S channels — register as incoming so the server can receive them
+        messenger.registerIncomingPluginChannel(this, "coi-client:use", this::handleAbilityUse);
+        messenger.registerIncomingPluginChannel(this, "coi-client:request", this::handleAbilityRequest);
+    }
+
+    /**
+     * Convenience helper — serialize fields into a raw byte array and send.
+     * For each payload, write fields in the exact order documented in the
+     * Payloads reference, using DataOutputStream for type-safe encoding.
+     */
+    private void sendPayload(Player player, String channel, byte[] data) {
+        player.sendPluginMessage(this, channel, data);
+    }
+}
+```
+
+## Message Flow
+
+The canonical interaction between a joining player and the server follows these steps:
+
+<Steps>
+  <Step title="Player joins the server">
+    The Minecraft client completes the login sequence and the play connection is established.
+  </Step>
+  <Step title="Client sends coi-client:request">
+    `CircleOfImaginationClient` automatically fires `requestAbilitiesFromServer()` on the `ClientPlayConnectionEvents.JOIN` event, sending an empty `AbilityRequestPayload` to the server.
+  </Step>
+  <Step title="Server responds with coi-client:abilities">
+    Your Paper plugin receives the request, looks up the player's pathway and unlocked abilities, builds a semicolon-separated abilities string, and sends back an `AbilitiesPayload`.
+  </Step>
+  <Step title="HUD updates">
+    The client parses the abilities data, populates the in-memory ability list, validates any previously bound slots, and refreshes the HUD overlay with the player's available abilities.
+  </Step>
+</Steps>
+
+After this initial exchange, the server can push cooldowns (`coi-client:cooldown`), trigger visual effects (`coi-client:effect`), apply mythical forms (`coi-client:mythical`), and sync beyonder conditions (`coi-client:conditions`) at any time in response to gameplay events.
+
+## Wire Format
+
+All payloads use a sequential codec over `RegistryFriendlyByteBuf`. There are only two field types used across the entire protocol:
+
+| Type | Write method | Read method | Notes |
+|------|-------------|-------------|-------|
+| `String` | `buf.writeUtf(value)` | `buf.readUtf()` | UTF-8, length-prefixed varint |
+| `int` | `buf.writeInt(value)` | `buf.readInt()` | Big-endian 32-bit signed integer |
+
+Fields are written and read in the **exact order** they are declared in each payload record. There are no field delimiters, version headers, or trailing bytes — the codec is strictly positional. Refer to the [Payloads reference](/network/payloads) for the field order of each channel.

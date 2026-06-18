@@ -1,0 +1,86 @@
+---
+title: "Install COI Client on Fabric Minecraft"
+sidebarTitle: "Installation"
+description: "Step-by-step guide to installing COI Client on Minecraft 1.21.1+ with Fabric Loader 0.16.10+ and Fabric API 0.119.3+."
+---
+
+This guide walks you through installing COI Client from a pre-built release JAR. You will need three components: **Fabric Loader** (the mod runtime), **Fabric API** (the standard library COI Client depends on), and the **COI Client JAR** itself. Fabric Loader is installed through the official Fabric installer; Fabric API and COI Client are downloaded as JAR files and dropped into your `mods/` folder.
+
+<Note>
+  **Version requirements:**
+
+  | Component | Minimum version |
+  |-----------|----------------|
+  | Minecraft | 1.21.1+ |
+  | Fabric Loader | 0.16.10+ |
+  | Fabric API | 0.119.3+ |
+
+  Using mismatched versions is the most common cause of startup crashes. Always match your Fabric API version to your Minecraft version.
+</Note>
+
+## Installing from a Release JAR
+
+<Steps>
+  <Step title="Install Fabric Loader">
+    Download and run the official Fabric installer from [fabricmc.net/use](https://fabricmc.net/use/). Select your Minecraft version (1.21.1 or later), leave **Loader Version** on the latest recommended build (0.16.10+), and click **Install**. The installer creates a new Fabric profile in the Minecraft Launcher automatically.
+  </Step>
+  <Step title="Download Fabric API">
+    Fabric API is a separate download from the mod loader. Grab the Fabric API JAR that matches your exact Minecraft version from [modrinth.com/mod/fabric-api](https://modrinth.com/mod/fabric-api) or [CurseForge](https://www.curseforge.com/minecraft/mc-mods/fabric-api). Make sure the version string ends with your Minecraft version (e.g. `0.119.3+1.21.1`).
+  </Step>
+  <Step title="Download COI Client">
+    Grab the latest `coi-client-<version>.jar` from the [GitHub Releases page](https://github.com/ikeepcalm/coi-client/releases). Always use the newest release unless you need a specific version to match a server's plugin.
+  </Step>
+  <Step title="Place both JARs in your mods folder">
+    Locate your Minecraft installation directory (`.minecraft` on most systems) and open the `mods/` subfolder. Copy both `fabric-api-<version>.jar` and `coi-client-<version>.jar` into that folder. No extraction is needed — Fabric loads JARs directly.
+
+    ```
+    .minecraft/
+    └── mods/
+        ├── fabric-api-0.119.3+1.21.1.jar
+        └── coi-client-1.1.1.jar
+    ```
+  </Step>
+  <Step title="Launch Minecraft with the Fabric profile">
+    Open the Minecraft Launcher, select the **fabric-loader-1.21.1** profile from the profile list, and click **Play**. Fabric will load both mods during startup.
+  </Step>
+</Steps>
+
+<Tip>
+  To confirm COI Client loaded correctly, open the Minecraft main menu and navigate to **Mods** (if you have a mod menu installed such as [Mod Menu](https://modrinth.com/mod/modmenu)). You should see **Circle of Imagination Client** listed with its version number. Alternatively, join a server running the Circle of Imagination plugin — if your ability HUD appears on screen, the mod is active and communicating with the server.
+</Tip>
+
+## Building from Source
+
+If you want to run the latest unreleased code or contribute to development, you can compile COI Client yourself. You will need **JDK 21** and **Git** installed.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/ikeepcalm/coi-client.git
+    cd coi-client
+    ```
+  </Step>
+  <Step title="Build the mod with Gradle">
+    Run the Gradle build task using the included wrapper. No separate Gradle installation is required.
+
+    ```bash
+    ./gradlew build
+    ```
+
+    On Windows, use `gradlew.bat build` instead. The first run will download Minecraft assets and all dependencies automatically — this may take a few minutes.
+  </Step>
+  <Step title="Locate the compiled JAR">
+    The build produces the mod JAR in the `build/libs/` directory:
+
+    ```
+    build/libs/
+    └── coi-client-1.1.1.jar
+    ```
+
+    Copy this JAR into your `.minecraft/mods/` folder alongside Fabric API, then launch Minecraft with the Fabric profile as described above.
+  </Step>
+</Steps>
+
+<Warning>
+  Source builds may contain unreleased or experimental features and could be incompatible with the stable Circle of Imagination server plugin. Use release JARs for production servers.
+</Warning>

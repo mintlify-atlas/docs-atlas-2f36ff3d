@@ -1,0 +1,116 @@
+---
+title: "Combining Visual Effects for Madness and Status Stages"
+sidebarTitle: "Combining Effects"
+description: "Layer multiple COI Client visual effects simultaneously to create rich immersive experiences for madness levels, combat encounters, and environmental states."
+---
+
+Effects in COI Client are fully independent layers — multiple effects can be active on a player's screen at the same time, each managed and rendered separately by the client. Sending a second `coi-client:effect` message while others are running does not interfere with existing effects. This layering model lets you build powerful compound experiences by combining effects that individually might be too subtle: a vignette alone is eerie, but pair it with a heartbeat and cracks and you have a full madness breakdown.
+
+## Madness Levels
+
+A common use case is scaling visual intensity alongside a custom madness or sanity mechanic. The three-stage progression below uses increasingly aggressive combinations to communicate the player's deteriorating mental state:
+
+```java
+// Madness level 1: mild unease — edges close in slightly
+sendEffect(player, "vignette", "intensity=0.4");
+
+// Madness level 2: growing dread — add a racing heartbeat
+sendEffect(player, "vignette", "intensity=0.6");
+sendEffect(player, "heartbeat", "intensity=0.8,bpm=85");
+
+// Madness level 3: full breakdown — cracks fracture reality, whispers invade
+sendEffect(player, "vignette", "intensity=0.7");
+sendEffect(player, "heartbeat", "intensity=0.9,bpm=95");
+sendEffect(player, "cracks", "intensity=0.6,pulse=true");
+sendEffect(player, "whispers", "intensity=0.8");
+```
+
+<Note>
+  When escalating a player from one madness level to the next, you don't need to stop the previous effects first. Sending a new `vignette` or `heartbeat` while one is already active will replace it from scratch with the new parameters — the transition happens seamlessly.
+</Note>
+
+## Combat and Action
+
+Short, punchy effects communicate moment-to-moment gameplay events. Use finite `duration` values so these clean themselves up automatically without any extra bookkeeping:
+
+```java
+// Ability cast flash — use the player's pathway color
+sendEffect(player, "flash", "color=FFDD00,intensity=0.6,duration=300"); // Sun
+sendEffect(player, "flash", "color=8B00FF,intensity=0.6,duration=300"); // Fool
+sendEffect(player, "flash", "color=FF2200,intensity=0.6,duration=300"); // Demoness
+sendEffect(player, "flash", "color=0055FF,intensity=0.6,duration=300"); // Door
+sendEffect(player, "flash", "color=00CCCC,intensity=0.6,duration=300"); // Tyrant
+sendEffect(player, "flash", "color=FF8800,intensity=0.6,duration=300"); // Priest
+
+// Taking heavy damage — cracks appear and blood rains down
+sendEffect(player, "cracks", "intensity=0.7,pulse=true,duration=5000");
+sendEffect(player, "bloodrain", "intensity=0.6,duration=4000");
+
+// Teleportation — brief but heavy VHS glitch
+sendEffect(player, "glitch", "intensity=0.8,duration=1500");
+```
+
+<Tip>
+  Rely on `duration` to auto-expire combat effects rather than scheduling manual `stop` calls. This keeps your plugin code simpler and avoids accidentally clearing a persistent madness effect that was already running.
+</Tip>
+
+## Environmental States
+
+Use persistent effects (no `duration`, or `duration=-1`) to mark environmental zones. Apply them on entry and clear them on exit.
+
+```java
+// Entering a frozen zone — persistent frost
+sendEffect(player, "frost", "intensity=0.7");
+
+// Entering a cursed area — layered paranoia
+sendEffect(player, "eyes", "count=3,duration=10000");   // eyes fade on their own
+sendEffect(player, "whispers", "intensity=0.6");        // persistent whispers
+sendEffect(player, "vignette", "intensity=0.5");        // persistent dark edges
+
+// Haunted location — maximum dread combo
+sendEffect(player, "vignette", "intensity=0.6");
+sendEffect(player, "whispers", "intensity=0.9,text=leave now|you are not welcome|it sees you");
+sendEffect(player, "bloodrain", "intensity=0.4");
+sendEffect(player, "cracks", "intensity=0.5,pulse=true");
+```
+
+When the player leaves the zone, clear only the persistent effects you started — finite effects like `eyes` will already have expired on their own:
+
+```java
+// Leaving a cursed area — clear the persistent layers
+sendEffect(player, "vignette", "stop");
+sendEffect(player, "whispers", "stop");
+// Note: eyes already expired automatically after their duration
+```
+
+## Clearing Effects
+
+To clear every active effect at once — for example on respawn, sanity restore, or zone exit — use the `"all"` shorthand:
+
+```java
+// On respawn or full sanity restore — wipe the slate clean
+sendEffect(player, "all", "stop");
+```
+
+A complete respawn handler might look like this:
+
+```java
+@EventHandler
+public void onPlayerRespawn(PlayerRespawnEvent event) {
+    Player player = event.getPlayer();
+    sendEffect(player, "all", "stop");
+}
+```
+
+## Performance Notes
+
+All effects render each frame in sequence on the client's render thread. For most combinations this is negligible, but keep the following in mind when stacking several effects:
+
+- **`tunnel`** renders via scanline fill at approximately 80 draw calls per frame. Use it for short, impactful moments rather than long ambient background states.
+- **`glitch`** and **`cracks`** are both lightweight — glitch uses a small fixed number of fill calls per burst, and cracks are pre-generated line segments drawn with single rotated rectangles.
+- **`bloodrain`**, **`frost`**, and **`whispers`** have moderate per-frame costs that scale with `intensity`. Running all three simultaneously at maximum intensity on a slow machine may be noticeable.
+- **`vignette`**, **`heartbeat`**, and **`flash`** are the most lightweight effects — each uses at most ~14 fill calls per frame and is safe to layer freely.
+
+<Warning>
+  Avoid combining `tunnel` with `bloodrain` at high intensities for extended durations. Both effects have significant per-frame rendering costs, and together they can impact client performance on lower-end hardware.
+</Warning>

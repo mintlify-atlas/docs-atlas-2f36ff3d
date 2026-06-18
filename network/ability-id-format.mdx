@@ -1,0 +1,114 @@
+---
+title: "Ability ID Format and Pathway Color Coding in COI Client"
+sidebarTitle: "Ability IDs"
+description: "COI Client ability IDs follow the format <pathway>-<tier>-<index>. The pathway prefix determines HUD slot color and pathway icon display."
+---
+
+Ability IDs are structured strings that encode three pieces of information in a single value: the pathway a player belongs to, the tier they have reached, and the position of the specific ability within that tier. This format is used consistently throughout the network protocol, the HUD rendering system, and the local configuration files — so understanding it is essential when building the server-side plugin that sends abilities to the client.
+
+## Format
+
+```
+<pathway>-<tier>-<index>
+```
+
+| Segment | Type | Description |
+|---------|------|-------------|
+| `pathway` | `String` (lowercase) | The beyonder pathway this ability belongs to |
+| `tier` | `int` | The sequence level within the pathway (9 = lowest, 1 = highest) |
+| `index` | `int` | Zero-based position of the ability within its tier |
+
+**Examples:**
+
+| ID | Pathway | Tier | Index |
+|----|---------|------|-------|
+| `sun-9-0` | sun | 9 | 0 (first ability at tier 9) |
+| `fool-1-2` | fool | 1 | 2 (third ability at tier 1) |
+| `tyrant-3-1` | tyrant | 3 | 1 (second ability at tier 3) |
+
+The client extracts the pathway by splitting on `-` and taking the first segment. This single extraction drives two behaviors simultaneously: HUD slot color coding and pathway icon rendering via the `coi-client:pathway_icons` font.
+
+## Pathway Color Coding
+
+When the client renders a HUD ability slot, it reads the pathway prefix from the ability ID and maps it to a color. Unrecognized pathway prefixes fall back to gray so the slot remains visible even if the ID is non-standard.
+
+| Pathway | HUD Color |
+|---------|-----------|
+| `fool` | Purple |
+| `door` | Blue |
+| `sun` | Yellow |
+| `tyrant` | Cyan |
+| `demoness` | Red |
+| `priest` | Orange |
+| *(unknown)* | Gray |
+
+<Tip>
+  Using consistent, lowercase pathway prefixes when building your abilities list on the server guarantees correct color coding in the HUD. A typo such as `Sun-9-0` (capital S) will not match any pathway and the slot will render in gray instead of yellow.
+</Tip>
+
+## All Registered Pathways
+
+The client ships with 25 pathway icons registered in `PATHWAY_ICONS`, each mapped to a glyph in the `coi-client:pathway_icons` bitmap font. These icons appear in item tooltips for Circle of Imagination ingredient items, as well as in various HUD elements.
+
+<CardGroup cols={3}>
+  <Card title="abyss" />
+  <Card title="aeon" />
+  <Card title="chained" />
+  <Card title="darkness" />
+  <Card title="death" />
+  <Card title="demoness" />
+  <Card title="door" />
+  <Card title="emperor" />
+  <Card title="error" />
+  <Card title="fool" />
+  <Card title="fortune" />
+  <Card title="giant" />
+  <Card title="hanged" />
+  <Card title="hermit" />
+  <Card title="justiciar" />
+  <Card title="moon" />
+  <Card title="mother" />
+  <Card title="paragon" />
+  <Card title="patriarch" />
+  <Card title="priest" />
+  <Card title="sublunary" />
+  <Card title="sun" />
+  <Card title="tower" />
+  <Card title="tyrant" />
+  <Card title="visionary" />
+</CardGroup>
+
+Any pathway name from this list used as an ability ID prefix will automatically receive the correct icon in supported UI surfaces. Pathways not on this list will simply omit the icon, which is non-fatal.
+
+## In-Memory Format
+
+When the client parses the `coi-client:abilities` payload, it stores each ability in memory using a compound string that pairs the ID with the English name:
+
+```
+"id - englishName"
+```
+
+**Examples:**
+
+```
+"sun-9-0 - bard-song"
+"fool-1-0 - jest"
+"tyrant-3-1 - domination"
+```
+
+This is the exact format written to `config/coi_abilities.json` when the player saves their slot bindings. When an ability is activated, the client splits this string on ` - ` and sends only the `id` segment over the `coi-client:use` channel — the server never receives the display name.
+
+```json
+{
+  "slot0": "sun-9-0 - bard-song",
+  "slot1": "fool-1-0 - jest",
+  "slot2": null,
+  "slot3": null,
+  "slot4": null,
+  "slot5": null
+}
+```
+
+<Note>
+  If the server sends a new `coi-client:abilities` payload and a previously bound ID no longer appears in it, the client will automatically clear that slot and re-save `coi_abilities.json`. This ensures stale bindings from a previous session never cause the client to fire abilities the player no longer has access to.
+</Note>

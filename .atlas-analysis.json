@@ -1,0 +1,94 @@
+{
+  "projectType": "general",
+  "projectName": "COI Client",
+  "projectDescription": "A Minecraft Fabric client mod that adds a customizable ability system, screen-space visual effects, and mythical creature transformation rendering for servers running the Circle of Imagination plugin.",
+  "theme": "palm",
+  "primaryColor": "#141414",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guide",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "keybindings"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "ability-system",
+              "ability-wheel",
+              "hud-configuration"
+            ]
+          },
+          {
+            "group": "Visual Effects",
+            "pages": [
+              "visual-effects-overview",
+              "mythical-forms"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Server Integration",
+        "groups": [
+          {
+            "group": "Network Protocol",
+            "pages": [
+              "network/overview",
+              "network/payloads",
+              "network/ability-id-format"
+            ]
+          },
+          {
+            "group": "Visual Effects API",
+            "pages": [
+              "effects/triggering-effects",
+              "effects/effect-reference",
+              "effects/combining-effects"
+            ]
+          },
+          {
+            "group": "Extending the Mod",
+            "pages": [
+              "extending/custom-effects",
+              "extending/custom-forms"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Bind up to 6 abilities to customizable keybindings (Z, X, C, V, B, N)",
+    "Interactive Ability Wheel (G) supporting up to 16 ability slots",
+    "Visual HUD overlay with cooldown timers, glow effects, and pathway color-coding",
+    "10 server-triggered screen-space visual effects (vignette, heartbeat, cracks, eyes, glitch, bloodrain, frost, whispers, tunnel, flash)",
+    "20 procedurally-rendered mythical creature transformation forms",
+    "Custom Fabric payload networking protocol for Paper plugin integration",
+    "Fully configurable HUD position, scale, and display options via in-game settings screen",
+    "Pathway icon font rendering on item tooltips for ingredient identification"
+  ],
+  "publicApiSurface": [
+    "CircleOfImaginationClient — mod entry point, static ability state accessors",
+    "AbilityUsePayload (C→S) — coi-client:use — activate an ability by ID",
+    "AbilityRequestPayload (C→S) — coi-client:request — request available ability list",
+    "AbilitiesPayload (S→C) — coi-client:abilities — deliver abilities to client",
+    "CooldownPayload (S→C) — coi-client:cooldown — set ability cooldown in ticks",
+    "VisualEffectPayload (S→C) — coi-client:effect — trigger/stop a visual effect",
+    "MythicalFormPayload (S→C) — coi-client:mythical_form — apply/remove creature transformation",
+    "ConditionsPayload (S→C) — coi-client:conditions — update beyonder condition state",
+    "EffectManager.trigger(effectId, params) — programmatically trigger effects",
+    "MythicalFormManager.register(MythicalCreatureForm) — register a new form",
+    "MythicalCreatureForm interface — getPathwayName(), render(), drawBox(), addVertex()",
+    "HudConfig — coi_hud.json settings: hudX, hudYOffset, slotSize, slotSpacing, hudScale, enabled, showKeybinds, showAbilityNames, showGlowEffect",
+    "AbilityConfig — coi_abilities.json slot bindings persistence"
+  ]
+}

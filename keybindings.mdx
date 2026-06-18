@@ -1,0 +1,48 @@
+---
+title: "COI Client Keybindings and Controls Reference"
+sidebarTitle: "Keybindings"
+description: "All default key assignments for COI Client ability slots, ability wheel, and menus — and how to remap them in Minecraft's controls settings."
+---
+
+COI Client registers all of its controls under a dedicated **"Circle of Imagination"** category in Minecraft's key bindings screen. This keeps mod controls clearly separated from vanilla Minecraft and other mods, making them easy to find and remap. You get six ability slot keys, one ability wheel key, one menu key, and — in development environments only — one debug key.
+
+## Default Key Bindings
+
+| Key | Action | Description |
+|-----|--------|-------------|
+| `Z` | Ability Slot 1 | Activates the ability bound to slot 1 |
+| `X` | Ability Slot 2 | Activates the ability bound to slot 2 |
+| `C` | Ability Slot 3 | Activates the ability bound to slot 3 |
+| `V` | Ability Slot 4 | Activates the ability bound to slot 4 |
+| `B` | Ability Slot 5 | Activates the ability bound to slot 5 |
+| `N` | Ability Slot 6 | Activates the ability bound to slot 6 |
+| `G` | Open Ability Wheel | Hold to display the radial ability wheel; release to close |
+| `K` | Open Ability Binding screen | Opens the screen for assigning abilities to slots and customizing the HUD |
+| `F8` | Effect Debug screen *(dev only)* | Opens a screen to test and stop visual effects without a server |
+
+## Remapping Keys
+
+All COI Client keybindings can be reassigned through the standard Minecraft controls screen — no config file editing required.
+
+<Steps>
+  <Step title="Open Minecraft Options">
+    From the main menu or the in-game pause menu, click **Options…**
+  </Step>
+  <Step title="Navigate to Key Binds">
+    Click **Controls…**, then **Key Binds**.
+  </Step>
+  <Step title="Find the Circle of Imagination category">
+    Scroll through the key binds list until you reach the **Circle of Imagination** section. All COI Client keys are grouped here — ability slots 1–6, the ability wheel, and the ability binding menu.
+  </Step>
+  <Step title="Click a binding and press your new key">
+    Click the button next to the action you want to reassign, then press your desired key. The change takes effect immediately and persists across sessions.
+  </Step>
+</Steps>
+
+<Tip>
+  If a key you want to use is already assigned to a vanilla Minecraft action (for example, `C` conflicts with some shader mods), Minecraft will highlight the conflict in red in the Key Binds screen. Simply remap either the COI Client key or the conflicting vanilla key to resolve it — the game will continue working correctly once both actions use distinct keys.
+</Tip>
+
+<Note>
+  The **F8 Effect Debug screen** key is only registered when COI Client detects it is running inside a **development environment** (i.e., launched via `./gradlew runClient`). It does not appear in the Key Binds screen and cannot be triggered during normal gameplay. This screen is intended for mod developers to test and iterate on visual effects locally without needing a live server connection.
+</Note>

@@ -1,0 +1,229 @@
+---
+title: "Creating Custom Mythical Creature Forms in COI Client"
+sidebarTitle: "Custom Forms"
+description: "Implement the MythicalCreatureForm interface and register your form in MythicalFormManager to add a new procedurally-rendered player transformation."
+---
+
+New mythical creature forms are added by implementing `MythicalCreatureForm` and calling `MythicalFormManager.register()` inside the manager's static initializer block. The server triggers player transformations by sending a `MythicalFormPayload` containing the pathway name; the client looks up the registered form and replaces the player's vanilla model with fully procedural, translucent 3D geometry for as long as the transformation is active.
+
+## The MythicalCreatureForm Interface
+
+All forms implement `dev.ua.ikeepcalm.coi.client.mcf.MythicalCreatureForm`. The interface is intentionally lean — two abstract methods plus two default geometry helpers:
+
+```java
+public interface MythicalCreatureForm {
+
+    /** Registry key source. Normalized to lowercase by MythicalFormManager. */
+    String getPathwayName();
+
+    /** Called every frame for each transformed player in view. */
+    void render(AvatarRenderState state, PoseStack.Pose pose, VertexConsumer consumer);
+
+    /** Renders a solid 3D box with 6 fully-colored faces. */
+    default void drawBox(PoseStack.Pose pose, VertexConsumer consumer,
+                         float minX, float minY, float minZ,
+                         float maxX, float maxY, float maxZ,
+                         float r, float g, float b, float a, int light) { ... }
+
+    /** Submits a single vertex to the translucent geometry buffer. */
+    default void addVertex(PoseStack.Pose pose, VertexConsumer consumer,
+                           float x, float y, float z,
+                           float r, float g, float b, float a,
+                           float u, float v, float nx, float ny, float nz,
+                           int light) { ... }
+}
+```
+
+### Method Reference
+
+| Method | Details |
+|--------|---------|
+| `getPathwayName()` | Returns the human-readable pathway name (e.g. `"Sun"`, `"My New Form"`). `MythicalFormManager.register()` uses this string — lowercased — as the primary registry key, and also inserts several normalized variants automatically. |
+| `render(state, pose, consumer)` | The main render callback. Use `drawBox` and `addVertex` to submit geometry. Access animation state via `state.ageInTicks` and per-player lighting via `state.lightCoords`. |
+| `drawBox(...)` | Convenience helper that emits all 6 faces (24 vertices) of an axis-aligned box in local player space. Colors and alpha are per-call, in the `0.0f`–`1.0f` range. |
+| `addVertex(...)` | Low-level helper for custom shapes. Internally calls `consumer.addVertex(...).setColor(...).setUv(...).setOverlay(NO_OVERLAY).setLight(...).setNormal(...)` — matching the Minecraft 1.21.2+ buffer API. |
+
+## Coordinate System
+
+All geometry passed to `drawBox` and `addVertex` is in **local player space**:
+
+- **Origin** is at the player's feet (ground level).
+- **Y+ is up** — a typical full-height humanoid body reaches `Y = 2.0`, and a head sits around `Y = 2.0`–`2.6`.
+- **X is lateral** (right = positive), **Z is depth** (forward = negative in standard orientation).
+- All geometry is rendered in **translucent mode** using `coi-client:textures/entity/white.png` — the `r`, `g`, `b`, `a` values you supply per vertex are the actual visible color.
+- The `PoseStack` is **pre-rotated** around Y by `180° − state.bodyRot` before your `render()` is called, so shapes you define facing +Z will automatically face the same direction the player is looking.
+
+<Info>
+  Because the pose stack is already aligned with `state.bodyRot`, you do not need to apply any rotation yourself for a standard upright humanoid form. The existing forms — `FoolForm`, `SunForm`, `TyrantForm`, etc. — rely entirely on this pre-rotation.
+</Info>
+
+## Step-by-Step Guide
+
+<Steps>
+  <Step title="Create your form class">
+    Create `src/client/java/dev/ua/ikeepcalm/coi/client/mcf/forms/MyNewForm.java`:
+
+    ```java
+    package dev.ua.ikeepcalm.coi.client.mcf.forms;
+
+    import com.mojang.blaze3d.vertex.PoseStack;
+    import com.mojang.blaze3d.vertex.VertexConsumer;
+    import dev.ua.ikeepcalm.coi.client.mcf.MythicalCreatureForm;
+    import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+
+    public class MyNewForm implements MythicalCreatureForm {
+        // ...
+    }
+    ```
+  </Step>
+
+  <Step title="Implement getPathwayName()">
+    Return the pathway display name exactly as it appears in the server's `mythical_creatures.json`. Letter case does not matter for matching — `MythicalFormManager` normalizes everything to lowercase — but the string you return here is what the debug screen and `getRegisteredPathwayNames()` will display:
+
+    ```java
+    @Override
+    public String getPathwayName() {
+        return "My New Form";
+    }
+    ```
+  </Step>
+
+  <Step title="Build the creature shape in render()">
+    Use `drawBox()` for solid regions and `addVertex()` for custom polygons. All coordinates are in the local player space described above:
+
+    ```java
+    @Override
+    public void render(AvatarRenderState state, PoseStack.Pose pose, VertexConsumer consumer) {
+        float time  = state.ageInTicks;
+        int   light = state.lightCoords;
+
+        // A static glowing body
+        drawBox(pose, consumer,
+            -0.38f, 1.0f, -0.22f,   // min X, Y, Z
+             0.38f, 2.0f,  0.22f,   // max X, Y, Z
+            0.8f, 0.3f, 0.1f,       // R, G, B
+            0.85f,                  // alpha
+            light
+        );
+    }
+    ```
+  </Step>
+
+  <Step title="Animate with state.ageInTicks">
+    `state.ageInTicks` increments every client tick (20 Hz) and is the standard driver for all form animations. Combine multiple sine/cosine frequencies to avoid repetitive motion:
+
+    ```java
+    float pulse    = (float) Math.sin(time * 0.12f) * 0.05f;
+    float flicker  = (float) Math.sin(time * 0.37f) * 0.02f;
+    float orbitAngle = time * 0.05f;
+
+    float ox = (float) Math.cos(orbitAngle) * 0.3f;
+    float oz = (float) Math.sin(orbitAngle) * 0.3f;
+    // Use ox/oz/pulse/flicker to offset drawBox calls
+    ```
+
+    Pass `state.lightCoords` directly to every `drawBox` or `addVertex` call — this ensures your form inherits in-world lighting rather than appearing uniformly lit.
+  </Step>
+
+  <Step title="Register in MythicalFormManager's static block">
+    Open `MythicalFormManager.java` and add your form to the `static` initializer, alongside the 20 existing registrations:
+
+    ```java
+    static {
+        register(new FoolForm());
+        // ... existing 19 forms ...
+        register(new EmperorForm());
+        register(new MyNewForm());  // ← add this
+    }
+    ```
+  </Step>
+
+  <Step title="Verify server-side triggering">
+    Your form is now active. The server triggers it by sending a `MythicalFormPayload` whose params field contains the pathway name (e.g. `"My New Form:...:start"`). The client calls `MythicalFormManager.handlePacket()`, which normalizes the name and looks it up in the registry.
+  </Step>
+</Steps>
+
+## Boilerplate Example
+
+The following complete class is taken directly from the `MYTHICAL_FORMS.md` reference:
+
+```java
+package dev.ua.ikeepcalm.coi.client.mcf.forms;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import dev.ua.ikeepcalm.coi.client.mcf.MythicalCreatureForm;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+
+public class MyNewForm implements MythicalCreatureForm {
+
+    @Override
+    public String getPathwayName() {
+        return "My New Form";
+    }
+
+    @Override
+    public void render(AvatarRenderState state, PoseStack.Pose pose, VertexConsumer consumer) {
+        float time  = state.ageInTicks;
+        int   light = state.lightCoords;
+
+        // Draw a simple glowing body box
+        drawBox(pose, consumer,
+            -0.4f, 0.0f, -0.2f,   // min X, Y, Z
+             0.4f, 1.8f,  0.2f,   // max X, Y, Z
+            0.8f, 0.3f, 0.1f,     // R, G, B
+            0.85f,                 // alpha
+            light
+        );
+    }
+}
+```
+
+To produce an animated, layered creature (as seen in `SunForm` or `FoolForm`), expand `render()` with multiple `drawBox` calls at different offsets driven by `Math.sin(time * ...)` and use a `for` loop with a seeded `Random` for orbital particles or trailing effects.
+
+## Registration
+
+Add your form to the `static` initializer in `MythicalFormManager.java`:
+
+```java
+static {
+    register(new FoolForm());
+    register(new DoorForm());
+    // ... (18 more existing forms) ...
+    register(new EmperorForm());
+    register(new MyNewForm());   // ← your addition
+}
+```
+
+`register()` stores the form under multiple normalized keys so the server does not need to match the pathway name character-for-character (see [Key Name Normalization](#key-name-normalization) below).
+
+## Aesthetics Guide
+
+When designing the look of a new form, follow the visual language established by the existing 20 forms:
+
+- **Colors** — keep them vibrant and thematically aligned with the pathway. The established palette is: Fool = purple/indigo (`0.72, 0.5, 0.92`), Tyrant = lightning cyan, Sun = blazing gold (`1.0, 0.62, 0.0`), Death = green gas / bone white. Avoid muddy mid-tones.
+- **Opacity** — use `0.2f` alpha for glassmorphic ghost-body silhouettes (as in `FoolForm`'s translucent humanoid base), and `0.85f`–`0.95f` for dense core structures. Layering multiple semi-transparent boxes at the same position creates natural depth and glow.
+- **Animation** — combine at least two different sine/cosine frequencies in `time` (e.g. `time * 0.12f` for slow pulse and `time * 0.38f` for fast shimmer) to break up rhythmic repetition. Per-particle phases seeded with a fixed `Random(i * SEED)` prevent all orbiting elements from moving in lockstep.
+- **Performance** — keep loop iteration counts reasonable. The existing forms use between 16 and 24 particles per loop. Each `drawBox` call emits 24 vertices; 20 particles × 24 vertices = 480 vertices per frame per transformed player in view. Avoid allocating `new Random(...)` or any other heap objects that aren't strictly necessary inside `render()`.
+
+## Key Name Normalization
+
+`MythicalFormManager.register()` automatically inserts the form under **five** key variants derived from `getPathwayName()`, all lowercased:
+
+| Variant | Example for `"My New Form"` |
+|---------|-----------------------------|
+| Exact lowercase | `"my new form"` |
+| Spaces removed | `"mynewform"` |
+| Underscores removed | `"my new form"` *(same if no underscores)* |
+| Spaces → underscores | `"my_new_form"` |
+| Underscores → spaces | `"my new form"` |
+
+This means your server plugin can send the pathway name in any of these formats and the client will resolve it correctly — no server-side changes are needed when renaming a form as long as all normalized variants still match.
+
+<Warning>
+  Adding new forms requires modifying and rebuilding the COI Client JAR from source. There is no runtime-loadable datapack or addon mechanism. Distribute your modified JAR to players and coordinate the pathway name with your server's `mythical_creatures.json` configuration.
+</Warning>
+
+<Tip>
+  Visit the [Mythical Forms reference](/mythical-forms) to browse all 20 existing forms — including their pathway themes, color palettes, and animation techniques — for inspiration before designing your own.
+</Tip>

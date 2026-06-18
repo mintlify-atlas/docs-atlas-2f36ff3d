@@ -1,0 +1,125 @@
+---
+title: "Trigger Visual Effects from a Paper Plugin via COI Client"
+sidebarTitle: "Triggering Effects"
+description: "Send the coi-client:effect payload from your Paper plugin to start or stop any of COI Client's 10 screen-space visual effects on a specific player."
+---
+
+All visual effects in COI Client are triggered entirely from the server side by sending the `coi-client:effect` custom plugin messaging payload to a specific player. Once received, effects run entirely on the client — rendering directly onto the player's HUD without any player interaction required. The client registers a global receiver for this channel as soon as it connects, so it is safe to send effects at any point after a player joins.
+
+## Setup
+
+<Steps>
+  <Step title="Register the outgoing channel in onEnable()">
+    In your Paper plugin's main class, register the `coi-client:effect` outgoing channel before you send any messages:
+
+    ```java
+    @Override
+    public void onEnable() {
+        getServer().getMessenger().registerOutgoingPluginChannel(this, "coi-client:effect");
+    }
+    ```
+  </Step>
+
+  <Step title="Create a sendEffect helper method">
+    Add a helper method to your plugin that encodes an effect ID and parameter string into the binary payload format COI Client expects:
+
+    ```java
+    void sendEffect(Player player, String effectId, String params) {
+        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        out.writeUTF(effectId);
+        out.writeUTF(params);
+        player.sendPluginMessage(plugin, "coi-client:effect", out.toByteArray());
+    }
+    ```
+
+    `ByteStreams` is provided by Guava, which is bundled with Paper. `plugin` should be a reference to your plugin instance (e.g. `this` if the method lives in your main class).
+  </Step>
+
+  <Step title="Call the helper to trigger effects">
+    With the channel registered and the helper in place, you can trigger any effect from anywhere in your plugin:
+
+    ```java
+    // Start a persistent vignette
+    sendEffect(player, "vignette", "intensity=0.7");
+
+    // Start a 10-second heartbeat at 90 bpm
+    sendEffect(player, "heartbeat", "intensity=0.85,bpm=90,duration=10000");
+
+    // Stop a specific effect
+    sendEffect(player, "vignette", "stop");
+
+    // Stop all active effects at once
+    sendEffect(player, "all", "stop");
+    ```
+  </Step>
+</Steps>
+
+## The sendEffect Helper
+
+The complete helper method to copy into your Paper plugin:
+
+```java
+import com.google.common.io.ByteStreams;
+import com.google.common.io.ByteArrayDataOutput;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
+
+// Inside your plugin class:
+private final JavaPlugin plugin = this;
+
+void sendEffect(Player player, String effectId, String params) {
+    ByteArrayDataOutput out = ByteStreams.newDataOutput();
+    out.writeUTF(effectId);
+    out.writeUTF(params);
+    player.sendPluginMessage(plugin, "coi-client:effect", out.toByteArray());
+}
+```
+
+<Note>
+  Both strings are written with `writeUTF`, which prefixes each string with a 2-byte length. The COI Client receiver reads them in the same order using `readUTF`.
+</Note>
+
+## Payload Structure
+
+Every `coi-client:effect` message carries exactly two string fields:
+
+| Field | Value | Description |
+|---|---|---|
+| `effectId` | Effect name (e.g. `vignette`) or `all` | Identifies which effect to trigger or stop. Passing `all` only makes sense with `params = "stop"`. |
+| `params` | Comma-separated `key=value` pairs, or `stop` | Configuration overrides for the effect. Omitted params fall back to their defaults. Passing `"stop"` removes the named effect instead of starting it. |
+
+**Example param strings:**
+
+```
+"intensity=0.8,duration=5000"
+"intensity=0.9,bpm=100,duration=15000"
+"color=FF2200,intensity=0.7,duration=400"
+"stop"
+```
+
+## Stopping Effects
+
+COI Client supports two stop patterns — stopping a single named effect or clearing everything at once:
+
+```java
+// Stop one specific effect by name
+sendEffect(player, "vignette", "stop");
+sendEffect(player, "heartbeat", "stop");
+sendEffect(player, "cracks", "stop");
+
+// Stop every active effect immediately
+sendEffect(player, "all", "stop");
+```
+
+When `effectId` is `"all"`, the params string is ignored entirely — the client calls `stopAll()` regardless of what params contains.
+
+## Behavior Notes
+
+- **Re-triggering replaces the effect.** If you send an effect that is already active, the old instance is removed and a fresh one starts from scratch with the new params. There is no stacking of the same effect type.
+- **Effects layer independently.** Multiple different effects can be active simultaneously — for example, `vignette`, `heartbeat`, and `cracks` can all run at the same time, each managed as its own layer by the client.
+- **Auto-expiry via `duration`.** Effects with a finite `duration` value (in milliseconds) automatically remove themselves once the duration elapses. Effects started without a `duration` (or with `duration=-1`) are persistent and will remain active until explicitly stopped.
+- **Photosensitivity mode.** If the player has enabled Epilepsy Mode in the COI Client config, the `flash`, `glitch`, and `heartbeat` effects are silently suppressed on the client side. Design your gameplay logic to handle the absence of these effects gracefully.
+
+<Tip>
+  Call `sendEffect(player, "all", "stop")` on player respawn or whenever you clear a player's status effects. This prevents stale visual effects from persisting into a new gameplay state — for example, a lingering heartbeat after a player has been revived.
+</Tip>

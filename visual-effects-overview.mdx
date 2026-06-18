@@ -1,0 +1,132 @@
+---
+title: "Screen-Space Visual Effects in COI Client"
+sidebarTitle: "Visual Effects"
+description: "COI Client renders 10 server-triggered screen-space effects — vignette, heartbeat, cracks, eyes, glitch, bloodrain, frost, whispers, tunnel, and flash."
+---
+
+COI Client's visual effects system renders screen-space overlays directly in the player's HUD. When the server sends a `coi-client:effect` plugin message payload, the client's `EffectManager` looks up the effect by ID and activates it as an independent layer on top of the game view. Because each effect is its own `VisualEffect` instance managed in a shared list, multiple effects can run simultaneously — vignette, heartbeat, and cracks can all be active at once with no conflicts.
+
+## Available Effects
+
+<CardGroup cols={2}>
+  <Card
+    title="vignette"
+    icon="circle-half-stroke"
+    href="/effects/effect-reference"
+  >
+    Darkens screen edges for cursed zones, low sanity, or death proximity.
+  </Card>
+  <Card
+    title="heartbeat"
+    icon="heart-pulse"
+    href="/effects/effect-reference"
+  >
+    Pulsing vignette that throbs with a realistic lub-DUB rhythm.
+  </Card>
+  <Card
+    title="cracks"
+    icon="burst"
+    href="/effects/effect-reference"
+  >
+    Branching fracture lines that grow from screen corners toward the center.
+  </Card>
+  <Card
+    title="eyes"
+    icon="eye"
+    href="/effects/effect-reference"
+  >
+    Creepy eyes that open from darkness, stare, then slowly close.
+  </Card>
+  <Card
+    title="glitch"
+    icon="tv"
+    href="/effects/effect-reference"
+  >
+    VHS-style horizontal distortion lines strobing in rapid bursts.
+  </Card>
+  <Card
+    title="bloodrain"
+    icon="droplet"
+    href="/effects/effect-reference"
+  >
+    Dark red streaks of varying speed and opacity falling down the screen.
+  </Card>
+  <Card
+    title="frost"
+    icon="snowflake"
+    href="/effects/effect-reference"
+  >
+    Ice crystals and blue-white gradients growing inward from screen edges.
+  </Card>
+  <Card
+    title="whispers"
+    icon="comment-dots"
+    href="/effects/effect-reference"
+  >
+    Cryptic text phrases that fade in and out at random screen positions.
+  </Card>
+  <Card
+    title="tunnel"
+    icon="circle-dot"
+    href="/effects/effect-reference"
+  >
+    Circular vignette that closes inward, shrinking the player's field of view.
+  </Card>
+  <Card
+    title="flash"
+    icon="bolt"
+    href="/effects/effect-reference"
+  >
+    Instant full-screen color wash that rises quickly and fades out.
+  </Card>
+</CardGroup>
+
+## Triggering Effects
+
+Effects are triggered from a Paper plugin via the `coi-client:effect` plugin messaging channel. Write the effect ID and a comma-separated param string into a `ByteArrayDataOutput`, then send it to the target player:
+
+```java
+// Helper — call from your Paper plugin
+void sendEffect(Player player, String effectId, String params) {
+    ByteArrayDataOutput out = ByteStreams.newDataOutput();
+    out.writeUTF(effectId);
+    out.writeUTF(params);
+    player.sendPluginMessage(plugin, "coi-client:effect", out.toByteArray());
+}
+
+// Example calls
+sendEffect(player, "vignette",  "intensity=0.6,duration=10000");
+sendEffect(player, "heartbeat", "intensity=0.9,bpm=95");
+sendEffect(player, "flash",     "color=FF2200,intensity=0.7,duration=400");
+```
+
+Remember to register the outgoing channel in `onEnable` before sending any messages:
+
+```java
+getServer().getMessenger().registerOutgoingPluginChannel(this, "coi-client:effect");
+```
+
+For the complete param reference for every effect, see the [full integration guide](/effects/triggering-effects).
+
+## Stopping Effects
+
+Two stop patterns are supported:
+
+- **Stop one effect** — set `params` to `"stop"` while providing the specific effect ID:
+  ```
+  effectId = "<id>",  params = "stop"
+  ```
+- **Stop all active effects** — use `"all"` as the effect ID (params are ignored):
+  ```
+  effectId = "all",  params = "stop"
+  ```
+
+Triggering an effect that is already running replaces it — the previous instance is removed and the new one starts from scratch with the new params.
+
+## Debug Screen
+
+During development, press **F8** to open the Effect Debug screen. It lists every effect registered in `EffectManager` alongside **Test** and **Stop** buttons so you can preview each effect without a running server. The screen's `shouldPause()` method returns `false`, so the game world continues to render and all active effects remain fully visible while the screen is open.
+
+<Note>
+  Server developers looking for the complete effects API — including all per-effect params, defaults, and combination recipes — should visit the **Server Integration** tab for the full effects API reference.
+</Note>

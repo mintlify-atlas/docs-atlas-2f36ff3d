@@ -1,0 +1,86 @@
+---
+title: "Mythical Creature Forms: Procedural Player Transformations"
+sidebarTitle: "Mythical Forms"
+description: "COI Client renders 20 procedurally-animated mythical creature forms that replace the player model when a server triggers a pathway transformation."
+---
+
+Mythical Forms are client-side player model replacements tied to a player's pathway progression. When the server sends a `coi-client:mythical_form` plugin message payload, COI Client looks up the matching `MythicalCreatureForm` implementation, stores it in `MythicalFormManager` keyed by the player's UUID, and from that point on the `PlayerRendererMixin` cancels vanilla player rendering and submits custom procedural geometry instead. All animation, coloring, and geometry calculations happen entirely on the client — the server only needs to send the pathway name, tier, and action.
+
+## Registered Forms
+
+The following 20 forms are registered at startup. Each corresponds to a distinct pathway in the Circle of Imagination lore.
+
+| Form Name | Pathway Description |
+|---|---|
+| Fool | Cluster of translucent, layered Spirit Body Thread maggots |
+| Door | Mass of glowing cosmic bubbles hiding layered eyes inside |
+| Error | Interconnected stereoscopic clock-segment Worms of Time |
+| White Tower | Blinding pure light swirling with infinite knowledge symbols |
+| Visionary | Colossal golden dragon whose eyes contain entire illusory worlds |
+| Sun | Formless blazing fireball of single-cell abstract-symbol organisms |
+| Tyrant | Towering lightning-wreathed silhouette with deep-blue scaled tentacles |
+| Hanged Man | Massive shadow bound in grotesque chains and an upside-down cross |
+| Darkness | Pitch-black hound-spider hybrid radiating eternal silence and dreams |
+| Death | Floating feathered bone-serpent with pale-blue soul-fire eyes |
+| Twilight Giant | Colossal armored giant glowing with the dim light of impending sunset |
+| Red Priest | Towering being of raging crimson flames shaped like an armored warlord |
+| Demoness | Terrifying fog-and-spider-thread female figure hiding plague and disease |
+| Paragon | Abstract bronze-gear and steam-piston structure processing industrial blueprints |
+| Hermit | Hooded humanoid of purple information streams and blinking forbidden eyes |
+| Wheel of Fortune | Multi-layered rotating wheel engraved with divination cards and fate threads |
+| Chained Man | Distorted humanoid in rust-iron chains straining to burst into beast form |
+| Abomination | Ever-changing mass of black flesh, mouths, limbs, and maddening tentacles |
+| Justiciar | Golden balance scale with an armored judge silhouette enforcing absolute order |
+| Black Emperor | Shadow-imperial figure in a spiked crown warping laws and physical rules |
+
+## How Transformations Work
+
+<Steps>
+  <Step title="Server sends MythicalFormPayload">
+    The server dispatches a `coi-client:mythical_form` plugin message containing the target player's UUID and a params string formatted as `<pathwayName>:<tier>:<action>` (e.g., `fool:5:start`).
+  </Step>
+  <Step title="MythicalFormManager stores the active form">
+    `MythicalFormManager.handlePacket()` parses the params string. If the action is `"start"` (or any value other than `"stop"`), it stores the lowercase pathway name in a `ConcurrentHashMap` keyed by the player's UUID string. If the action is `"stop"`, the entry is removed and vanilla rendering resumes.
+  </Step>
+  <Step title="PlayerRendererMixin intercepts the render pipeline">
+    On every render frame, `PlayerRendererMixin` checks whether the entity being rendered is a player with an active form via `MythicalFormManager.isTransformed()`. If a form is active, the mixin takes over — vanilla player model submission is cancelled with `ci.cancel()`.
+  </Step>
+  <Step title="Custom geometry is submitted via SubmitNodeCollector">
+    The mixin submits custom geometry through `collector.order(0).submitCustomGeometry(...)`, using the translucent white texture `coi-client:textures/entity/white.png`. Per-vertex RGBA values in each form's `render()` call define all coloring and transparency.
+  </Step>
+  <Step title="Player nameplate is preserved">
+    Before cancelling vanilla rendering, the mixin explicitly calls `callSubmitNameDisplay` so the player's name tag continues to render above the custom form at the correct position.
+  </Step>
+</Steps>
+
+## Rendering Pipeline
+
+Forms use Minecraft 1.21.2+'s deferred, state-based rendering system. Instead of an immediate `render(...)` call, geometry is queued through a `SubmitNodeCollector` and flushed later in the frame. Key technical details:
+
+- **Gaze alignment** — the `PoseStack` is pre-rotated around the Y-axis by `(180° − state.bodyRot)` before geometry submission, so the form always faces the direction the player's camera is looking.
+- **Translucent vertex data** — all geometry is submitted under the `entityTranslucent` render type with the solid-white base texture. Color and alpha are encoded per-vertex in each form's `render(AvatarRenderState, PoseStack.Pose, VertexConsumer)` implementation.
+- **Draw helpers** — `MythicalCreatureForm` provides two default interface methods: `drawBox(...)` for axis-aligned cuboids and `addVertex(...)` for raw vertex submission, both forwarding directly to the `VertexConsumer`.
+- **Procedural animation** — forms drive animation from `state.ageInTicks`, feeding that value into sine/cosine expressions to produce oscillation, rotation, and pulsing without any external animation state.
+
+## Form Name Normalization
+
+`MythicalFormManager.register()` stores each form under **five key variants** simultaneously to make lookups resilient to inconsistent server-side formatting:
+
+```java
+// All five variants are stored for every registered form
+REGISTERED_FORMS.put(name,                          form); // "white tower"
+REGISTERED_FORMS.put(name.replace(" ", ""),         form); // "whitetower"
+REGISTERED_FORMS.put(name.replace("_", ""),         form); // "whitetower" (from underscore source)
+REGISTERED_FORMS.put(name.replace(" ", "_"),        form); // "white_tower"
+REGISTERED_FORMS.put(name.replace("_", " "),        form); // "white tower" (from underscore source)
+```
+
+All keys are lowercased before storage. This means the server can send `White Tower`, `white_tower`, `whitetower`, or any other casing variant and the correct form will be found.
+
+<Note>
+  Adding new forms requires modifying the COI Client source — there is no runtime registration API. See [/extending/custom-forms](/extending/custom-forms) for a step-by-step guide to implementing and registering a new `MythicalCreatureForm`.
+</Note>
+
+<Tip>
+  Want to create a fully custom creature form with your own geometry, colors, and procedural animation? Head over to [/extending/custom-forms](/extending/custom-forms) for the complete developer guide, including boilerplate code and aesthetic best practices.
+</Tip>

@@ -1,0 +1,369 @@
+---
+title: "COI Client Payload Reference for All Network Channels"
+sidebarTitle: "Payloads"
+description: "Complete reference for all 7 COI Client custom payload channels — field names, types, wire format, and Paper plugin code examples for each."
+---
+
+This page is the complete reference for every payload in the COI Client protocol. Each entry documents the channel identifier, direction, wire fields in order, and a working Paper Java example showing how to send or receive that payload. All strings are UTF-8 length-prefixed; all integers are big-endian 32-bit signed values. See the [Protocol Overview](/network/overview) for channel registration and the general message flow.
+
+---
+
+## `coi-client:use` — Activate Ability
+
+**Direction:** Client → Server
+
+Sent by the mod whenever the player presses one of their six ability keybindings (Z / X / C / V / B / N). The `abilityId` is extracted from the in-memory binding entry (the segment before ` - `) before being transmitted.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `abilityId` | `String` | The ability being activated, e.g. `"sun-9-0"` |
+
+**Receiving in Paper:**
+
+```java
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.messaging.PluginMessageListener;
+
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+
+public class AbilityUseListener implements PluginMessageListener {
+
+    private final CirclePlugin plugin;
+
+    public AbilityUseListener(CirclePlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public void onPluginMessageReceived(String channel, Player player, byte[] message) {
+        if (!channel.equals("coi-client:use")) return;
+
+        try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(message))) {
+            // Read the length-prefixed UTF-8 string
+            String abilityId = readString(in);
+
+            // Look up and execute the ability server-side
+            plugin.getAbilityManager().executeAbility(player, abilityId);
+
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to parse coi-client:use from " + player.getName());
+        }
+    }
+
+    /** Mirrors Minecraft's length-prefixed UTF-8 string encoding. */
+    private String readString(DataInputStream in) throws Exception {
+        int length = readVarInt(in);
+        byte[] bytes = new byte[length];
+        in.readFully(bytes);
+        return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private int readVarInt(DataInputStream in) throws Exception {
+        int result = 0, shift = 0;
+        byte b;
+        do {
+            b = in.readByte();
+            result |= (b & 0x7F) << shift;
+            shift += 7;
+        } while ((b & 0x80) != 0);
+        return result;
+    }
+}
+```
+
+---
+
+## `coi-client:request` — Request Abilities List
+
+**Direction:** Client → Server
+
+An empty payload automatically sent by the client on every server join via `ClientPlayConnectionEvents.JOIN`. The server should respond with a `coi-client:abilities` payload containing the player's current abilities.
+
+*This payload carries no fields.* The wire representation is a zero-byte body.
+
+**Receiving in Paper:**
+
+```java
+@Override
+public void onPluginMessageReceived(String channel, Player player, byte[] message) {
+    if (!channel.equals("coi-client:request")) return;
+
+    // Build and send the abilities list back to this player
+    plugin.getAbilityManager().sendAbilitiesToPlayer(player);
+}
+```
+
+---
+
+## `coi-client:abilities` — Deliver Abilities List
+
+**Direction:** Server → Client
+
+Delivers the complete set of abilities available to this player. The client clears its previous ability list, parses the new data, and refreshes all bound HUD slots.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `data` | `String` | Semicolon-separated ability records (see format below) |
+
+**Record format:** each record inside `data` uses pipe `\|` delimiters:
+
+```
+id|localizedName|englishName|category
+```
+
+Multiple records are separated by `;`:
+
+```
+sun-9-0|Пісня барда|bard-song|music;fool-1-0|Жарт|jest|trickery
+```
+
+| Segment | Description |
+|---------|-------------|
+| `id` | Internal ability ID — pathway prefix determines HUD color (see [Ability IDs](/network/ability-id-format)) |
+| `localizedName` | Shown to the player in their locale |
+| `englishName` | Used in notifications and stored in `coi_abilities.json` |
+| `category` | Grouping label (informational; currently unused by the client renderer) |
+
+**Sending from Paper:**
+
+```java
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.nio.charset.StandardCharsets;
+
+public void sendAbilitiesToPlayer(Player player) {
+    // Build semicolon-separated ability records
+    StringBuilder sb = new StringBuilder();
+    for (Ability ability : getAbilitiesForPlayer(player)) {
+        if (sb.length() > 0) sb.append(';');
+        sb.append(ability.getId())
+          .append('|').append(ability.getLocalizedName())
+          .append('|').append(ability.getEnglishName())
+          .append('|').append(ability.getCategory());
+    }
+
+    byte[] payload = writeString(sb.toString());
+    player.sendPluginMessage(plugin, "coi-client:abilities", payload);
+}
+
+/** Encodes a String as a Minecraft-style length-prefixed UTF-8 byte array. */
+private byte[] writeString(String value) throws RuntimeException {
+    try {
+        byte[] strBytes = value.getBytes(StandardCharsets.UTF_8);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(baos);
+        writeVarInt(out, strBytes.length);
+        out.write(strBytes);
+        return baos.toByteArray();
+    } catch (Exception e) {
+        throw new RuntimeException("Failed to encode string payload", e);
+    }
+}
+
+private void writeVarInt(DataOutputStream out, int value) throws Exception {
+    while ((value & ~0x7F) != 0) {
+        out.writeByte((value & 0x7F) | 0x80);
+        value >>>= 7;
+    }
+    out.writeByte(value);
+}
+```
+
+---
+
+## `coi-client:cooldown` — Set Ability Cooldown
+
+**Direction:** Server → Client
+
+Notifies the client that an ability is on cooldown. The HUD overlay immediately begins rendering the cooldown animation for the corresponding slot. The client converts `ticks` to milliseconds internally for smooth sub-tick animation.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `abilityId` | `String` | Must exactly match an `id` from the abilities list |
+| `ticks` | `int` | Cooldown duration in game ticks (20 ticks = 1 second) |
+
+**Sending from Paper:**
+
+```java
+public void sendCooldown(Player player, String abilityId, int ticks) {
+    try {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(baos);
+
+        byte[] idBytes = abilityId.getBytes(StandardCharsets.UTF_8);
+        writeVarInt(out, idBytes.length);
+        out.write(idBytes);
+        out.writeInt(ticks); // big-endian 32-bit int
+
+        player.sendPluginMessage(plugin, "coi-client:cooldown", baos.toByteArray());
+    } catch (Exception e) {
+        plugin.getLogger().warning("Failed to send cooldown payload: " + e.getMessage());
+    }
+}
+
+// Example: put "sun-9-0" on a 5-second cooldown
+sendCooldown(player, "sun-9-0", 100);
+```
+
+<Note>
+  Sending a cooldown for an ability ID that does not appear in the player's current abilities list is silently ignored by the client — it will not throw an error, but the HUD slot will not animate.
+</Note>
+
+---
+
+## `coi-client:effect` — Trigger Visual Effect
+
+**Direction:** Server → Client
+
+Instructs the client to start or stop a client-side visual effect rendered over the player's HUD. Effects are managed by `EffectManager` and rendered via `HudRenderCallback`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `effectId` | `String` | Registered effect name (e.g. `"cracks"`, `"vignette"`) or `"all"` to target every active effect |
+| `params` | `String` | Comma-separated `key=value` pairs, or `"stop"` to remove the effect |
+
+**Special values:**
+
+| `effectId` | `params` | Result |
+|------------|----------|--------|
+| `"cracks"` | `"intensity=0.8,duration=8000"` | Start the cracks effect with given parameters |
+| `"cracks"` | `"stop"` | Stop and remove the cracks effect |
+| `"all"` | `"stop"` | Stop and remove every currently active effect |
+
+See [Triggering Visual Effects](/effects/triggering-effects) for the full list of effect IDs and their supported parameters.
+
+**Sending from Paper:**
+
+```java
+/**
+ * Sends a visual effect payload to a player.
+ *
+ * @param player   the target player
+ * @param effectId registered effect name, or "all"
+ * @param params   key=value pairs (comma-separated), or "stop"
+ */
+public void sendEffect(Player player, String effectId, String params) {
+    try {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(baos);
+
+        writeUtf(out, effectId);
+        writeUtf(out, params);
+
+        player.sendPluginMessage(plugin, "coi-client:effect", baos.toByteArray());
+    } catch (Exception e) {
+        plugin.getLogger().warning("Failed to send effect payload: " + e.getMessage());
+    }
+}
+
+// Examples
+sendEffect(player, "cracks",    "intensity=0.8,pulse=true,duration=8000");
+sendEffect(player, "eyes",      "count=3");
+sendEffect(player, "vignette",  "color=red,intensity=0.5");
+sendEffect(player, "cracks",    "stop");   // stop just cracks
+sendEffect(player, "all",       "stop");   // clear all active effects
+```
+
+---
+
+## `coi-client:mythical` — Apply Mythical Form
+
+**Direction:** Server → Client
+
+Instructs the client to apply or remove a mythical creature form overlay for the specified player. Handled by `MythicalFormManager.handlePacket()`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `targetUuid` | `String` | UUID string of the player to transform (e.g. `"550e8400-e29b-41d4-a716-446655440000"`) |
+| `params` | `String` | Format: `<pathwayName>:<tier>:<action>` where action is `start` or `stop` |
+
+**`params` format examples:**
+
+| Value | Meaning |
+|-------|---------|
+| `"fool:1:start"` | Begin the Fool pathway tier-1 form on the target player |
+| `"sun:3:start"` | Begin the Sun pathway tier-3 form on the target player |
+| `"fool:1:stop"` | Remove the Fool pathway form from the target player |
+
+**Sending from Paper:**
+
+```java
+public void applyMythicalForm(Player target, String pathway, int tier, boolean start) {
+    try {
+        String uuid = target.getUniqueId().toString();
+        String action = start ? "start" : "stop";
+        String params = pathway + ":" + tier + ":" + action;
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(baos);
+
+        writeUtf(out, uuid);
+        writeUtf(out, params);
+
+        // Broadcast to all online players so they all see the transformation
+        for (Player viewer : plugin.getServer().getOnlinePlayers()) {
+            viewer.sendPluginMessage(plugin, "coi-client:mythical", baos.toByteArray());
+        }
+    } catch (Exception e) {
+        plugin.getLogger().warning("Failed to send mythical form payload: " + e.getMessage());
+    }
+}
+
+// Example: apply the Fool pathway tier-1 form
+applyMythicalForm(player, "fool", 1, true);
+
+// Example: remove it
+applyMythicalForm(player, "fool", 1, false);
+```
+
+---
+
+## `coi-client:conditions` — Update Beyonder Conditions
+
+**Direction:** Server → Client
+
+Syncs the player's beyonder condition state to the client. The payload is parsed by `ClientBeyonderState.parseAndUpdate()`, which updates the madness, permanent madness, freeze stacks, mental pressure, and tiredness values used by the `MadnessHudOverlay`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `data` | `String` | Semicolon-separated `key=value` pairs representing the player's current condition values |
+
+**`data` format:**
+
+```
+madness=0.35;permanentMadness=0.1;freezeStacks=2;mentalPressure=15;tiredness=0.6
+```
+
+| Key | Value type | Description |
+|-----|-----------|-------------|
+| `madness` | `double` | Current madness level (0.0 – 1.0 or higher) |
+| `permanentMadness` | `double` | Permanent (non-recoverable) madness |
+| `freezeStacks` | `int` | Number of active freeze condition stacks |
+| `mentalPressure` | `int` | Current mental pressure value |
+| `tiredness` | `double` | Current tiredness level |
+
+Only the keys present in `data` are updated — omitted keys retain their previous values on the client.
+
+**Sending from Paper:**
+
+```java
+public void syncConditions(Player player, double madness, double permMadness,
+                            int freeze, int pressure, double tiredness) {
+    String data = "madness=" + madness
+            + ";permanentMadness=" + permMadness
+            + ";freezeStacks=" + freeze
+            + ";mentalPressure=" + pressure
+            + ";tiredness=" + tiredness;
+
+    byte[] payload = writeString(data);
+    player.sendPluginMessage(plugin, "coi-client:conditions", payload);
+}
+
+// Example: update a player who just gained some madness
+syncConditions(player, 0.35, 0.10, 2, 15, 0.60);
+```
+
+<Warning>
+  When a player disconnects, `ClientBeyonderState.reset()` is called automatically, zeroing all condition values. Always re-sync conditions when a player reconnects or changes worlds if your plugin persists these values server-side.
+</Warning>

@@ -1,0 +1,86 @@
+---
+title: "Ability System: Bind and Use Powers in COI Client"
+sidebarTitle: "Ability System"
+description: "Bind up to 6 abilities to customizable hotkeys, manage cooldowns through the HUD, and activate powers with a single keypress in COI Client."
+---
+
+The ability system is the core feature of COI Client. Your character can have up to **6 ability slots**, each bound to one of the default hotkeys (Z, X, C, V, B, N). The server running the Circle of Imagination plugin determines which abilities are available to you — the client requests this list automatically on join and stores your chosen bindings locally in `config/coi_abilities.json`. Whenever you press a bound key, the client sends an activation packet to the server and the ability takes effect.
+
+## Binding Abilities
+
+<Steps>
+  <Step title="Open the Ability Binding screen">
+    Press **K** in-game (or the key you've remapped under the **Circle of Imagination** category in Minecraft's controls settings) to open the Ability Binding screen.
+  </Step>
+  <Step title="Choose an ability for each slot">
+    Each of the 6 slots shows a scrollable dropdown listing every ability the server has granted you. Click the dropdown for a slot and select the ability you want to assign.
+  </Step>
+  <Step title="Save your choices">
+    Click **Done** to apply. Bindings are written to `config/coi_abilities.json` immediately — no restart required.
+  </Step>
+  <Step title="Use your abilities in-game">
+    Press the corresponding key to activate each slot:
+
+    | Slot | Default key |
+    |------|-------------|
+    | 1    | Z           |
+    | 2    | X           |
+    | 3    | C           |
+    | 4    | V           |
+    | 5    | B           |
+    | 6    | N           |
+
+    A brief action-bar notification confirms the ability name when triggered.
+  </Step>
+</Steps>
+
+## HUD Display
+
+Each bound ability is rendered as a slot widget on your screen by the `AbilityHudOverlay`. Only slots that actually have an ability assigned are shown — empty slots are hidden to keep the HUD clean. Every visible slot displays:
+
+- **Ability icon** — a category/tier icon loaded from the client's texture pack, tinted in the pathway color.
+- **Cooldown arc and timer** — a darkened radial overlay sweeps across the icon while the ability is on cooldown; the remaining seconds are shown in the center.
+- **Keybinding label** — the key name is drawn below the slot so you always know which key to press (toggle-able via HUD settings).
+- **Ability name** — the English name of the ability is shown beneath the slot (toggle-able via HUD settings).
+- **Glow effect** — when the cooldown expires and the ability is ready, the slot pulses with the pathway color as a ready indicator (toggle-able via HUD settings).
+
+### Pathway Colors
+
+The slot tint and glow color are derived from the first segment of the ability ID (before the first `-`):
+
+| Pathway   | Color  | Hex       |
+|-----------|--------|-----------|
+| `fool`    | Purple | `#B347CC` |
+| `door`    | Blue   | `#5B7FE6` |
+| `sun`     | Yellow | `#FFE55C` |
+| `tyrant`  | Cyan   | `#4AA3FF` |
+| `demoness`| Red    | `#B22222` |
+| `priest`  | Orange | `#FF6B35` |
+| unknown   | Gray   | `#777777` |
+
+## Ability ID Format
+
+Ability IDs follow the pattern `<pathway>-<tier>-<index>` — for example `sun-9-0` or `fool-1-2`. The pathway segment drives the color table above, and the tier segment determines which icon tier (divine, fair, high, mid, low) is rendered on the slot.
+
+For a complete breakdown of the wire format, tier numbering, and how IDs map to icons see the [Ability ID Format reference](/network/ability-id-format).
+
+## Configuration File
+
+Your slot bindings are persisted in `config/coi_abilities.json`. The file stores one entry per slot using the keys `ability1` through `ability6`, with the value being the ability's internal `id - englishName` string:
+
+```json
+{
+  "ability1": "sun-9-0 - Solar Flare",
+  "ability2": "fool-1-2 - Clown's Trick",
+  "ability3": null,
+  "ability4": null,
+  "ability5": null,
+  "ability6": null
+}
+```
+
+Each time the server sends an updated ability list (on join or on demand), the client validates every bound slot. If an ability ID no longer exists in the server's list — for example, because your character lost access to a power — that slot is automatically cleared and the file is re-saved. You do not need to manually clean up stale bindings.
+
+<Note>
+  Available abilities are provided entirely by the server-side Circle of Imagination plugin. You cannot add, create, or unlock abilities from the client alone — the list you see in the dropdown is exactly what the server has granted your character.
+</Note>

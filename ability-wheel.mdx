@@ -1,0 +1,63 @@
+---
+title: "Ability Wheel: Radial Quick-Access Menu in COI Client"
+sidebarTitle: "Ability Wheel"
+description: "The COI Client Ability Wheel is a radial menu that provides quick access to up to 16 ability slots — hold G to open and release over your chosen ability."
+---
+
+The Ability Wheel is a radial pop-up menu that gives you fast access to a larger pool of abilities than the six hotkey slots allow. Holding **G** (rebindable under the **Circle of Imagination** controls category) opens the wheel centered on your screen; moving your cursor over a segment highlights the ability in that slot, and releasing G (or clicking) fires it instantly. The wheel supports up to **16 slots** (`MAX_WHEEL_SIZE = 16`) and is stored separately from your six hotkey bindings — it's a fully independent layer of quick-access on top of your normal ability keys.
+
+## Using the Wheel
+
+<Steps>
+  <Step title="Hold G to open the wheel">
+    While in-game (not in any other menu), press and **hold** the G key. The screen darkens and the radial wheel appears centered on your display. The game continues running — the wheel screen does not pause.
+  </Step>
+  <Step title="Move your cursor to the desired segment">
+    Each configured slot is arranged evenly around the wheel. Hover over a segment to highlight it; the ability's name appears in the center of the wheel. Empty slots show a `+` placeholder and cannot be activated.
+  </Step>
+  <Step title="Release G to activate">
+    Let go of G while a slot is highlighted to send the ability activation to the server. You can also click the highlighted slot. If you release G while the cursor is over the center dead-zone (or over no slot), no ability fires and the wheel simply closes.
+  </Step>
+</Steps>
+
+## Configuring Wheel Slots
+
+Wheel ability bindings are stored in the same `config/coi_abilities.json` file as hotkey bindings, but in a separate section. The keys `wheel1` through `wheel16` hold each wheel slot's `id - englishName` string:
+
+```json
+{
+  "ability1": "sun-9-0 - Solar Flare",
+  "wheel1": "fool-3-1 - Silver Smile",
+  "wheel2": "priest-5-0 - Holy Shield",
+  "wheel3": "tyrant-7-2 - Iron Will",
+  "wheel4": null
+}
+```
+
+You assign wheel slots through the same **Ability Binding screen** (K) as hotkey slots. Click the **Show Wheel Mode** toggle button near the top of the screen to switch the dropdown list from hotkey slots to wheel slots. The wheel supports pagination when you have more than 6 slots configured — use the `<` / `>` buttons or scroll to move between pages.
+
+The **active number of wheel slots** displayed during gameplay is controlled by the `wheelSlots` setting in your HUD config (default: **8**, range: 2–16). Even if you have filled all 16 entries in `coi_abilities.json`, only the first `wheelSlots` are shown on the radial. Adjust this in the [HUD Settings screen](/hud-configuration) to match how many slots you actually want on your wheel.
+
+<CardGroup cols={2}>
+  <Card title="Binding Screen" icon="circle-nodes">
+    Open the Ability Binding screen with **K**, then toggle to Wheel Mode to assign abilities to each radial slot.
+  </Card>
+  <Card title="Slot Count" icon="sliders">
+    Control how many segments appear on the wheel with the **Wheel Slots** slider in HUD Settings (K → HUD Settings).
+  </Card>
+</CardGroup>
+
+## Wheel vs. Hotkey Slots
+
+Both systems let you activate abilities, but they serve different use cases:
+
+| Feature | Hotkeys (Z–N) | Ability Wheel (G) |
+|---------|--------------|-------------------|
+| Number of slots | 6 | 2–16 (configurable) |
+| Activation speed | Instant keypress | Hold G → aim → release |
+| Best for | High-frequency abilities | Situational or secondary abilities |
+| Keybinding requirement | One key per slot | Single key for all wheel slots |
+
+<Tip>
+  Use both systems together for maximum flexibility. Bind your most-used combat abilities to the Z–N hotkeys for instant one-key activation, and fill the wheel with situational, utility, or rarely-used powers you still want accessible without hunting through a menu. This way you can carry up to 22 abilities ready at all times — 6 on hotkeys and up to 16 on the wheel.
+</Tip>
