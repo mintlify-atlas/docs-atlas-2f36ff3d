@@ -65,6 +65,22 @@ COI Client's HUD is fully configurable — you can move the ability slot row any
   The number of segments shown on the [Ability Wheel](/ability-wheel). Valid range: `2`–`16` (hard maximum is `MAX_WHEEL_SIZE = 16`). Only the first `wheelSlots` entries from your wheel bindings are displayed on the radial.
 </ParamField>
 
+<ParamField path="epilepsyMode" type="boolean" default="false">
+  When enabled, disables flashing and rapidly-cycling visual effects that could trigger photosensitivity issues. This toggle is available in the HUD Settings screen and does not affect ability icons or the cooldown overlay.
+</ParamField>
+
+<ParamField path="showMadnessBar" type="boolean" default="true">
+  When enabled, renders the Madness bar on screen. Disable this if you do not use the madness mechanic or want a cleaner HUD.
+</ParamField>
+
+<ParamField path="madnessYOffset" type="int" default="55">
+  Vertical offset in pixels used to position the Madness bar. Interpreted relative to the anchor point set by `madnessAnchor`. Valid range: `0`–`200`.
+</ParamField>
+
+<ParamField path="madnessAnchor" type="string" default="TOP_LEFT">
+  Corner of the screen the Madness bar is anchored to. Accepted values: `TOP_LEFT`, `TOP_CENTER`, `BOTTOM_LEFT`, `BOTTOM_CENTER`.
+</ParamField>
+
 ## Presets
 
 The HUD Settings screen includes four built-in presets you can cycle through by clicking the **Preset** button at the bottom of the screen. Each click advances to the next preset and applies it immediately:
@@ -76,7 +92,7 @@ The HUD Settings screen includes four built-in presets you can cycle through by 
 | **Large** | Oversized slots and generous spacing | 55 | 65 | 1.2 | ✔ | ✔ |
 | **Minimal** | Tiny icons only — maximum screen space | 25 | 30 | 0.7 | ✘ | ✘ |
 
-Applying a preset overwrites all layout fields with the preset values, but does not change the `enabled` flag or boolean toggles that the preset doesn't touch. You can then fine-tune individual values after applying a preset.
+Applying a preset overwrites all layout fields and most visual toggles (`showKeybinds`, `showAbilityNames`, `showGlowEffect`, `showMadnessBar`, `madnessYOffset`, `madnessAnchor`) with the preset values, but does not change the `enabled` flag or `epilepsyMode`. You can then fine-tune individual values after applying a preset.
 
 ## Manual Config
 

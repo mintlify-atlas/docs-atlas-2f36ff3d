@@ -106,11 +106,11 @@ public void onPlayerRespawn(PlayerRespawnEvent event) {
 
 All effects render each frame in sequence on the client's render thread. For most combinations this is negligible, but keep the following in mind when stacking several effects:
 
-- **`tunnel`** renders via scanline fill at approximately 80 draw calls per frame. Use it for short, impactful moments rather than long ambient background states.
+- **`tunnel`** renders via scanline fill at approximately `screenHeight ÷ 3` draw calls per frame (the scanline step is 3 pixels). Use it for short, impactful moments rather than long ambient background states.
 - **`glitch`** and **`cracks`** are both lightweight — glitch uses a small fixed number of fill calls per burst, and cracks are pre-generated line segments drawn with single rotated rectangles.
 - **`bloodrain`**, **`frost`**, and **`whispers`** have moderate per-frame costs that scale with `intensity`. Running all three simultaneously at maximum intensity on a slow machine may be noticeable.
 - **`vignette`**, **`heartbeat`**, and **`flash`** are the most lightweight effects — each uses at most ~14 fill calls per frame and is safe to layer freely.
 
 <Warning>
-  Avoid combining `tunnel` with `bloodrain` at high intensities for extended durations. Both effects have significant per-frame rendering costs, and together they can impact client performance on lower-end hardware.
+  Avoid combining `tunnel` with `bloodrain` at high intensities for extended durations. `tunnel` alone generates `~screenHeight ÷ 3` fill calls per frame, and pairing it with `bloodrain` adds further per-frame cost that together can impact client performance on lower-end hardware.
 </Warning>

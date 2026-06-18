@@ -4,7 +4,7 @@ sidebarTitle: "Mythical Forms"
 description: "COI Client renders 20 procedurally-animated mythical creature forms that replace the player model when a server triggers a pathway transformation."
 ---
 
-Mythical Forms are client-side player model replacements tied to a player's pathway progression. When the server sends a `coi-client:mythical_form` plugin message payload, COI Client looks up the matching `MythicalCreatureForm` implementation, stores it in `MythicalFormManager` keyed by the player's UUID, and from that point on the `PlayerRendererMixin` cancels vanilla player rendering and submits custom procedural geometry instead. All animation, coloring, and geometry calculations happen entirely on the client — the server only needs to send the pathway name, tier, and action.
+Mythical Forms are client-side player model replacements tied to a player's pathway progression. When the server sends a `coi-client:mythical` plugin message payload, COI Client looks up the matching `MythicalCreatureForm` implementation, stores it in `MythicalFormManager` keyed by the player's UUID, and from that point on the `PlayerRendererMixin` cancels vanilla player rendering and submits custom procedural geometry instead. All animation, coloring, and geometry calculations happen entirely on the client — the server only needs to send the pathway name, tier, and action.
 
 ## Registered Forms
 
@@ -15,29 +15,29 @@ The following 20 forms are registered at startup. Each corresponds to a distinct
 | Fool | Cluster of translucent, layered Spirit Body Thread maggots |
 | Door | Mass of glowing cosmic bubbles hiding layered eyes inside |
 | Error | Interconnected stereoscopic clock-segment Worms of Time |
-| White Tower | Blinding pure light swirling with infinite knowledge symbols |
+| Tower | Blinding pure light swirling with infinite knowledge symbols |
 | Visionary | Colossal golden dragon whose eyes contain entire illusory worlds |
 | Sun | Formless blazing fireball of single-cell abstract-symbol organisms |
 | Tyrant | Towering lightning-wreathed silhouette with deep-blue scaled tentacles |
-| Hanged Man | Massive shadow bound in grotesque chains and an upside-down cross |
+| Hanged | Massive shadow bound in grotesque chains and an upside-down cross |
 | Darkness | Pitch-black hound-spider hybrid radiating eternal silence and dreams |
 | Death | Floating feathered bone-serpent with pale-blue soul-fire eyes |
-| Twilight Giant | Colossal armored giant glowing with the dim light of impending sunset |
-| Red Priest | Towering being of raging crimson flames shaped like an armored warlord |
+| Giant | Colossal armored giant glowing with the dim light of impending sunset |
+| Priest | Towering being of raging crimson flames shaped like an armored warlord |
 | Demoness | Terrifying fog-and-spider-thread female figure hiding plague and disease |
 | Paragon | Abstract bronze-gear and steam-piston structure processing industrial blueprints |
 | Hermit | Hooded humanoid of purple information streams and blinking forbidden eyes |
-| Wheel of Fortune | Multi-layered rotating wheel engraved with divination cards and fate threads |
-| Chained Man | Distorted humanoid in rust-iron chains straining to burst into beast form |
-| Abomination | Ever-changing mass of black flesh, mouths, limbs, and maddening tentacles |
+| Fortune | Multi-layered rotating wheel engraved with divination cards and fate threads |
+| Chained | Distorted humanoid in rust-iron chains straining to burst into beast form |
+| Abyss | Ever-changing mass of black flesh, mouths, limbs, and maddening tentacles |
 | Justiciar | Golden balance scale with an armored judge silhouette enforcing absolute order |
-| Black Emperor | Shadow-imperial figure in a spiked crown warping laws and physical rules |
+| Emperor | Shadow-imperial figure in a spiked crown warping laws and physical rules |
 
 ## How Transformations Work
 
 <Steps>
   <Step title="Server sends MythicalFormPayload">
-    The server dispatches a `coi-client:mythical_form` plugin message containing the target player's UUID and a params string formatted as `<pathwayName>:<tier>:<action>` (e.g., `fool:5:start`).
+    The server dispatches a `coi-client:mythical` plugin message containing the target player's UUID and a params string formatted as `<pathwayName>:<tier>:<action>` (e.g., `fool:5:start`).
   </Step>
   <Step title="MythicalFormManager stores the active form">
     `MythicalFormManager.handlePacket()` parses the params string. If the action is `"start"` (or any value other than `"stop"`), it stores the lowercase pathway name in a `ConcurrentHashMap` keyed by the player's UUID string. If the action is `"stop"`, the entry is removed and vanilla rendering resumes.
@@ -68,14 +68,14 @@ Forms use Minecraft 1.21.2+'s deferred, state-based rendering system. Instead of
 
 ```java
 // All five variants are stored for every registered form
-REGISTERED_FORMS.put(name,                          form); // "white tower"
-REGISTERED_FORMS.put(name.replace(" ", ""),         form); // "whitetower"
-REGISTERED_FORMS.put(name.replace("_", ""),         form); // "whitetower" (from underscore source)
-REGISTERED_FORMS.put(name.replace(" ", "_"),        form); // "white_tower"
-REGISTERED_FORMS.put(name.replace("_", " "),        form); // "white tower" (from underscore source)
+REGISTERED_FORMS.put(name,                          form); // "tower"
+REGISTERED_FORMS.put(name.replace(" ", ""),         form); // "tower" (no-op for single-word names)
+REGISTERED_FORMS.put(name.replace("_", ""),         form); // "tower" (strips underscores if present)
+REGISTERED_FORMS.put(name.replace(" ", "_"),        form); // "tower" (no-op for single-word names)
+REGISTERED_FORMS.put(name.replace("_", " "),        form); // "tower" (converts underscores to spaces)
 ```
 
-All keys are lowercased before storage. This means the server can send `White Tower`, `white_tower`, `whitetower`, or any other casing variant and the correct form will be found.
+All keys are lowercased before storage. This means the server can send `Tower`, `tower`, `TOWER`, or underscore-separated variants and the correct form will still be found.
 
 <Note>
   Adding new forms requires modifying the COI Client source — there is no runtime registration API. See [/extending/custom-forms](/extending/custom-forms) for a step-by-step guide to implementing and registering a new `MythicalCreatureForm`.

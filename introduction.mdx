@@ -1,7 +1,7 @@
 ---
 title: "COI Client: Ability System Mod for Fabric Minecraft"
 sidebarTitle: "Introduction"
-description: "COI Client is a Minecraft Fabric mod that adds a server-synced ability system, customizable HUD, 10 visual effects, and 20 mythical creature forms to Minecraft."
+description: "COI Client is a Fabric mod adding a server-synced ability system, customizable HUD, 10 visual effects, and 20 mythical creature forms to Minecraft."
 ---
 
 COI Client is a client-side Minecraft Fabric mod built for players on servers running the **Circle of Imagination** Paper plugin. It adds a full ability system — complete with a six-slot HUD, an interactive ability wheel, server-synced cooldowns, and rich visual effects — directly into your Minecraft client. Whether you're navigating one of 25 mythical pathways or triggering screen-shaking glitch effects mid-battle, COI Client translates server-side game logic into a polished, customizable in-game experience.
@@ -27,7 +27,7 @@ COI Client is a client-side Minecraft Fabric mod built for players on servers ru
 
 COI Client is **purely client-side** — it contains no server code and makes no assumptions about your world. Instead, it communicates with the **Circle of Imagination Paper plugin** running on your server through Fabric's custom payload (plugin messaging) system.
 
-When you join a server, the client automatically sends a `coi-client:request` payload to ask for your available abilities. The server responds with a `coi-client:abilities` payload containing all abilities assigned to your character. From that point on, the server pushes cooldown updates (`coi-client:cooldown`), visual effect commands (`coi-client:effect`), mythical form transitions (`coi-client:mcf`), and beyonder condition data (`coi-client:conditions`) — and the client renders everything locally with no further round-trips needed.
+When you join a server, the client automatically sends a `coi-client:request` payload to ask for your available abilities. The server responds with a `coi-client:abilities` payload containing all abilities assigned to your character. From that point on, the server pushes cooldown updates (`coi-client:cooldown`), visual effect commands (`coi-client:effect`), mythical form transitions (`coi-client:mythical`), and beyonder condition data (`coi-client:conditions`) — and the client renders everything locally with no further round-trips needed.
 
 This clean split means the mod adds **zero server-side overhead**: all rendering, HUD logic, keybinding handling, and visual effect animation run entirely on your machine.
 

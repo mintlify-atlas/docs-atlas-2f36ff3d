@@ -21,18 +21,41 @@ All visual effects in COI Client are triggered entirely from the server side by 
   </Step>
 
   <Step title="Create a sendEffect helper method">
-    Add a helper method to your plugin that encodes an effect ID and parameter string into the binary payload format COI Client expects:
+    Add a helper method to your plugin that encodes an effect ID and parameter string into the binary payload format COI Client expects.
+
+    The COI Client reads both strings using Minecraft's `FriendlyByteBuf.readUtf()`, which expects each string to be length-prefixed with a **varint**, not a fixed 2-byte length. You must encode the payload with a matching varint writer — the easiest way on Paper is to use Netty's `ByteBuf` directly:
 
     ```java
+    import io.netty.buffer.ByteBuf;
+    import io.netty.buffer.Unpooled;
+
     void sendEffect(Player player, String effectId, String params) {
-        ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        out.writeUTF(effectId);
-        out.writeUTF(params);
-        player.sendPluginMessage(plugin, "coi-client:effect", out.toByteArray());
+        ByteBuf buf = Unpooled.buffer();
+        writeUtf(buf, effectId);
+        writeUtf(buf, params);
+        byte[] data = new byte[buf.readableBytes()];
+        buf.readBytes(data);
+        buf.release();
+        player.sendPluginMessage(plugin, "coi-client:effect", data);
+    }
+
+    /** Writes a UTF-8 string with a varint length prefix — matches FriendlyByteBuf.writeUtf(). */
+    private static void writeUtf(ByteBuf buf, String value) {
+        byte[] bytes = value.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        writeVarInt(buf, bytes.length);
+        buf.writeBytes(bytes);
+    }
+
+    private static void writeVarInt(ByteBuf buf, int value) {
+        while ((value & ~0x7F) != 0) {
+            buf.writeByte((value & 0x7F) | 0x80);
+            value >>>= 7;
+        }
+        buf.writeByte(value);
     }
     ```
 
-    `ByteStreams` is provided by Guava, which is bundled with Paper. `plugin` should be a reference to your plugin instance (e.g. `this` if the method lives in your main class).
+    `plugin` should be a reference to your plugin instance (e.g. `this` if the method lives in your main class). Netty is bundled with Paper and does not need to be declared as a dependency.
   </Step>
 
   <Step title="Call the helper to trigger effects">
@@ -56,27 +79,46 @@ All visual effects in COI Client are triggered entirely from the server side by 
 
 ## The sendEffect Helper
 
-The complete helper method to copy into your Paper plugin:
+The complete helper to copy into your Paper plugin. COI Client decodes both strings using Minecraft's `FriendlyByteBuf.readUtf()`, which expects a **varint** length prefix before each string's UTF-8 bytes. You must encode them the same way — use Netty's `ByteBuf` (bundled with Paper), **not** `DataOutputStream.writeUTF()` (which writes a fixed 2-byte length prefix and is incompatible):
 
 ```java
-import com.google.common.io.ByteStreams;
-import com.google.common.io.ByteArrayDataOutput;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import java.nio.charset.StandardCharsets;
 
 // Inside your plugin class:
 private final JavaPlugin plugin = this;
 
 void sendEffect(Player player, String effectId, String params) {
-    ByteArrayDataOutput out = ByteStreams.newDataOutput();
-    out.writeUTF(effectId);
-    out.writeUTF(params);
-    player.sendPluginMessage(plugin, "coi-client:effect", out.toByteArray());
+    ByteBuf buf = Unpooled.buffer();
+    writeUtf(buf, effectId);
+    writeUtf(buf, params);
+    byte[] data = new byte[buf.readableBytes()];
+    buf.readBytes(data);
+    buf.release();
+    player.sendPluginMessage(plugin, "coi-client:effect", data);
+}
+
+/** Writes a UTF-8 string with a varint length prefix — matches FriendlyByteBuf.writeUtf(). */
+private static void writeUtf(ByteBuf buf, String value) {
+    byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+    writeVarInt(buf, bytes.length);
+    buf.writeBytes(bytes);
+}
+
+private static void writeVarInt(ByteBuf buf, int value) {
+    while ((value & ~0x7F) != 0) {
+        buf.writeByte((value & 0x7F) | 0x80);
+        value >>>= 7;
+    }
+    buf.writeByte(value);
 }
 ```
 
 <Note>
-  Both strings are written with `writeUTF`, which prefixes each string with a 2-byte length. The COI Client receiver reads them in the same order using `readUTF`.
+  Both strings are written with a **varint** length prefix followed by raw UTF-8 bytes. This matches `FriendlyByteBuf.writeUtf()` — the format the COI Client receiver uses to read them. Do not use `DataOutputStream.writeUTF()`, which writes a 2-byte big-endian length prefix and is not compatible.
 </Note>
 
 ## Payload Structure

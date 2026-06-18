@@ -206,7 +206,7 @@ This page is the complete parameter reference for all 10 COI Client screen-space
   Cryptic text phrases fade in and out at random positions across the screen. The spawn rate scales with `intensity`. Custom phrases can be injected via the `text` param. Good for: high madness, haunted locations, Fool/Door pathways, forbidden knowledge.
 
   **Default phrase pool:**
-  > "they can see you" · "don't look back" · "it knows your name" · "run" · "the door is open" · "help me" · "it's behind you"
+  > "they can see you" · "don't look back" · "it knows YOUR name" · "you should not be here" · "RUN" · "the door IS open" · "forget" · "help me" · "it's behind you" · "turn around" · "not real" · "listen" · "almost" · "wrong PLACE" · "he is watching"
 
   <ParamField path="intensity" type="float (0–1)" default="0.7">
     Controls how frequently new phrases spawn on screen.
@@ -233,10 +233,10 @@ This page is the complete parameter reference for all 10 COI Client screen-space
 </Accordion>
 
 <Accordion title="tunnel">
-  A circular vignette closes inward from all edges, leaving only a shrinking oval of visibility at the screen center. Rendered via scanline fill (~80 draw calls per frame). Good for: exhaustion, confusion, extreme madness, near-death.
+  A circular vignette closes inward from all edges, leaving only a shrinking oval of visibility at the screen center. Rendered via scanline fill (approximately `screenHeight ÷ 3` draw calls per frame). Good for: exhaustion, confusion, extreme madness, near-death.
 
   <Warning>
-    Due to the scanline rendering approach (~80 draw calls per frame), `tunnel` is the most GPU-intensive effect. Avoid running it simultaneously with other heavy effects for extended durations.
+    Due to the scanline rendering approach (~`screenHeight ÷ 3` draw calls per frame), `tunnel` is the most GPU-intensive effect. Avoid running it simultaneously with other heavy effects for extended durations.
   </Warning>
 
   <ParamField path="intensity" type="float (0–1)" default="0.7">

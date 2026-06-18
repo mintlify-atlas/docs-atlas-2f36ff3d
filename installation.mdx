@@ -1,7 +1,7 @@
 ---
-title: "Install COI Client on Fabric Minecraft"
+title: "COI Client Installation Guide for Fabric Minecraft"
 sidebarTitle: "Installation"
-description: "Step-by-step guide to installing COI Client on Minecraft 1.21.1+ with Fabric Loader 0.16.10+ and Fabric API 0.119.3+."
+description: "Install COI Client on Minecraft 26.1.2 with Fabric Loader 0.18.6 and Fabric API 0.145.4+26.1.2. Covers release JARs and building from source with JDK 21."
 ---
 
 This guide walks you through installing COI Client from a pre-built release JAR. You will need three components: **Fabric Loader** (the mod runtime), **Fabric API** (the standard library COI Client depends on), and the **COI Client JAR** itself. Fabric Loader is installed through the official Fabric installer; Fabric API and COI Client are downloaded as JAR files and dropped into your `mods/` folder.
@@ -9,11 +9,11 @@ This guide walks you through installing COI Client from a pre-built release JAR.
 <Note>
   **Version requirements:**
 
-  | Component | Minimum version |
+  | Component | Required version |
   |-----------|----------------|
-  | Minecraft | 1.21.1+ |
-  | Fabric Loader | 0.16.10+ |
-  | Fabric API | 0.119.3+ |
+  | Minecraft | 26.1.2 |
+  | Fabric Loader | 0.18.6 |
+  | Fabric API | 0.145.4+26.1.2 |
 
   Using mismatched versions is the most common cause of startup crashes. Always match your Fabric API version to your Minecraft version.
 </Note>
@@ -22,10 +22,10 @@ This guide walks you through installing COI Client from a pre-built release JAR.
 
 <Steps>
   <Step title="Install Fabric Loader">
-    Download and run the official Fabric installer from [fabricmc.net/use](https://fabricmc.net/use/). Select your Minecraft version (1.21.1 or later), leave **Loader Version** on the latest recommended build (0.16.10+), and click **Install**. The installer creates a new Fabric profile in the Minecraft Launcher automatically.
+    Download and run the official Fabric installer from [fabricmc.net/use](https://fabricmc.net/use/). Select your Minecraft version (26.1.2), leave **Loader Version** on the latest recommended build (0.18.6 or later), and click **Install**. The installer creates a new Fabric profile in the Minecraft Launcher automatically.
   </Step>
   <Step title="Download Fabric API">
-    Fabric API is a separate download from the mod loader. Grab the Fabric API JAR that matches your exact Minecraft version from [modrinth.com/mod/fabric-api](https://modrinth.com/mod/fabric-api) or [CurseForge](https://www.curseforge.com/minecraft/mc-mods/fabric-api). Make sure the version string ends with your Minecraft version (e.g. `0.119.3+1.21.1`).
+    Fabric API is a separate download from the mod loader. Grab the Fabric API JAR that matches your exact Minecraft version from [modrinth.com/mod/fabric-api](https://modrinth.com/mod/fabric-api) or [CurseForge](https://www.curseforge.com/minecraft/mc-mods/fabric-api). Make sure the version string ends with your Minecraft version (e.g. `0.145.4+26.1.2`).
   </Step>
   <Step title="Download COI Client">
     Grab the latest `coi-client-<version>.jar` from the [GitHub Releases page](https://github.com/ikeepcalm/coi-client/releases). Always use the newest release unless you need a specific version to match a server's plugin.
@@ -36,12 +36,12 @@ This guide walks you through installing COI Client from a pre-built release JAR.
     ```
     .minecraft/
     └── mods/
-        ├── fabric-api-0.119.3+1.21.1.jar
+        ├── fabric-api-0.145.4+26.1.2.jar
         └── coi-client-1.1.1.jar
     ```
   </Step>
   <Step title="Launch Minecraft with the Fabric profile">
-    Open the Minecraft Launcher, select the **fabric-loader-1.21.1** profile from the profile list, and click **Play**. Fabric will load both mods during startup.
+    Open the Minecraft Launcher, select the **fabric-loader-26.1.2** profile from the profile list, and click **Play**. Fabric will load both mods during startup.
   </Step>
 </Steps>
 

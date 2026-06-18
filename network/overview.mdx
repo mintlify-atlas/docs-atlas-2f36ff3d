@@ -70,7 +70,7 @@ The canonical interaction between a joining player and the server follows these 
     The Minecraft client completes the login sequence and the play connection is established.
   </Step>
   <Step title="Client sends coi-client:request">
-    `CircleOfImaginationClient` automatically fires `requestAbilitiesFromServer()` on the `ClientPlayConnectionEvents.JOIN` event, sending an empty `AbilityRequestPayload` to the server.
+    `CircleOfImaginationClient` automatically fires `requestAbilitiesFromServer()` on the `ClientPlayConnectionEvents.JOIN` event, sending an empty `AbilityRequestPayload` to the server. The same request is also fired when the player opens the Ability Binding screen (default key: K).
   </Step>
   <Step title="Server responds with coi-client:abilities">
     Your Paper plugin receives the request, looks up the player's pathway and unlocked abilities, builds a semicolon-separated abilities string, and sends back an `AbilitiesPayload`.

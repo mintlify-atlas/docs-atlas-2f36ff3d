@@ -40,6 +40,7 @@ When the client renders a HUD ability slot, it reads the pathway prefix from the
 | `tyrant` | Cyan |
 | `demoness` | Red |
 | `priest` | Orange |
+| `error` | Light Gray |
 | *(unknown)* | Gray |
 
 <Tip>
@@ -50,33 +51,17 @@ When the client renders a HUD ability slot, it reads the pathway prefix from the
 
 The client ships with 25 pathway icons registered in `PATHWAY_ICONS`, each mapped to a glyph in the `coi-client:pathway_icons` bitmap font. These icons appear in item tooltips for Circle of Imagination ingredient items, as well as in various HUD elements.
 
-<CardGroup cols={3}>
-  <Card title="abyss" />
-  <Card title="aeon" />
-  <Card title="chained" />
-  <Card title="darkness" />
-  <Card title="death" />
-  <Card title="demoness" />
-  <Card title="door" />
-  <Card title="emperor" />
-  <Card title="error" />
-  <Card title="fool" />
-  <Card title="fortune" />
-  <Card title="giant" />
-  <Card title="hanged" />
-  <Card title="hermit" />
-  <Card title="justiciar" />
-  <Card title="moon" />
-  <Card title="mother" />
-  <Card title="paragon" />
-  <Card title="patriarch" />
-  <Card title="priest" />
-  <Card title="sublunary" />
-  <Card title="sun" />
-  <Card title="tower" />
-  <Card title="tyrant" />
-  <Card title="visionary" />
-</CardGroup>
+| Pathway | | Pathway | | Pathway |
+|---------|--|---------|--|---------|
+| `abyss` | | `fool` | | `patriarch` |
+| `aeon` | | `fortune` | | `priest` |
+| `chained` | | `giant` | | `sublunary` |
+| `darkness` | | `hanged` | | `sun` |
+| `death` | | `hermit` | | `tower` |
+| `demoness` | | `justiciar` | | `tyrant` |
+| `door` | | `moon` | | `visionary` |
+| `emperor` | | `mother` | | |
+| `error` | | `paragon` | | |
 
 Any pathway name from this list used as an ability ID prefix will automatically receive the correct icon in supported UI surfaces. Pathways not on this list will simply omit the icon, which is non-fatal.
 
@@ -100,12 +85,12 @@ This is the exact format written to `config/coi_abilities.json` when the player 
 
 ```json
 {
-  "slot0": "sun-9-0 - bard-song",
-  "slot1": "fool-1-0 - jest",
-  "slot2": null,
-  "slot3": null,
-  "slot4": null,
-  "slot5": null
+  "ability1": "sun-9-0 - bard-song",
+  "ability2": "fool-1-0 - jest",
+  "ability3": null,
+  "ability4": null,
+  "ability5": null,
+  "ability6": null
 }
 ```
 

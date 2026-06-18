@@ -125,7 +125,7 @@ Triggering an effect that is already running replaces it — the previous instan
 
 ## Debug Screen
 
-During development, press **F8** to open the Effect Debug screen. It lists every effect registered in `EffectManager` alongside **Test** and **Stop** buttons so you can preview each effect without a running server. The screen's `shouldPause()` method returns `false`, so the game world continues to render and all active effects remain fully visible while the screen is open.
+During development, press **F8** to open the Effect Debug screen. It lists every effect registered in `EffectManager` alongside **Test** and **Stop** buttons so you can preview each effect without a running server. The screen's `isPauseScreen()` method returns `false`, so the game world continues to render and all active effects remain fully visible while the screen is open.
 
 <Note>
   Server developers looking for the complete effects API — including all per-effect params, defaults, and combination recipes — should visit the **Server Integration** tab for the full effects API reference.

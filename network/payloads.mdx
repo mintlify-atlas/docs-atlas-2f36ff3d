@@ -78,7 +78,7 @@ public class AbilityUseListener implements PluginMessageListener {
 
 **Direction:** Client → Server
 
-An empty payload automatically sent by the client on every server join via `ClientPlayConnectionEvents.JOIN`. The server should respond with a `coi-client:abilities` payload containing the player's current abilities.
+An empty payload sent by the client in two situations: automatically on every server join via `ClientPlayConnectionEvents.JOIN`, and again whenever the player opens the Ability Binding screen (default key: K). The server should respond with a `coi-client:abilities` payload containing the player's current abilities.
 
 *This payload carries no fields.* The wire representation is a zero-byte body.
 
